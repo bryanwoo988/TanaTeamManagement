@@ -7,7 +7,20 @@ import { klDate } from '../../shared/dates';
 import { notifyUrl } from '../../shared/notifyUrls';
 import type { EventDoc, InvoiceDoc, MemberDoc, UserTeamDoc } from '../../shared/types';
 
-/** Single writer of users/{uid}/teams/{teamId}; also raises joinRequest / joined notifications. */
+/** Sets the member's name in one team to their own profile name; a membership gone since is skipped. */
+async function syncMemberName(teamId: string, uid: string, name: string): Promise<void> {
+  try {
+    await db.doc(`teams/${teamId}/members/${uid}`).update({ name });
+  } catch (e: any) {
+    if (e?.code !== 5) throw e; // NOT_FOUND: left or removed since the mirror was written
+  }
+}
+
+/**
+ * Single writer of users/{uid}/teams/{teamId}; also raises joinRequest / joined notifications.
+ * A membership made before the person had a profile (phone invite, Auth-only add) carries the
+ * admin-typed name; when a profile name exists and differs, the member doc takes it (spec §6.2).
+ */
 export const onMemberWrite = onDocumentWritten(
   { document: 'teams/{teamId}/members/{uid}', region: REGION, secrets: NOTIFY_SECRETS },
   async (event) => {
@@ -16,12 +29,16 @@ export const onMemberWrite = onDocumentWritten(
     const after = event.data?.after.exists ? (event.data.after.data() as MemberDoc) : undefined;
     const mirror = db.doc(`users/${uid}/teams/${teamId}`);
     // Events can arrive late or be retried: mirror from the CURRENT member and team docs, not the event snapshot.
-    const [memberNow, team] = await Promise.all([db.doc(`teams/${teamId}/members/${uid}`).get(), db.doc(`teams/${teamId}`).get()]);
+    const [memberNow, team, profile] = await Promise.all([
+      db.doc(`teams/${teamId}/members/${uid}`).get(), db.doc(`teams/${teamId}`).get(), db.doc(`users/${uid}`).get(),
+    ]);
     if (!memberNow.exists || !team.exists) await mirror.delete();
     else {
       const m = memberNow.data() as MemberDoc;
       const doc: UserTeamDoc = { teamId, name: team.get('name') as string, role: m.role, status: m.status };
       await mirror.set(doc);
+      const profileName = profile.get('name');
+      if (typeof profileName === 'string' && profileName.trim() && profileName !== m.name) await syncMemberName(teamId, uid, profileName);
     }
     if (!after || !team.exists) return;
     const teamName = team.get('name') as string;
@@ -32,6 +49,29 @@ export const onMemberWrite = onDocumentWritten(
     } else if (after.status === 'active' && (before ? before.status === 'pending' : team.get('createdBy') !== uid)) {
       await notifyUsers([uid], { kind: 'joined', id: `${event.id}_joined`, teamId, vars: { team: teamName }, url: notifyUrl.calendar(teamId) });
     }
+  },
+);
+
+/**
+ * When a profile is created or renamed, every membership (found through the users/{uid}/teams mirror)
+ * takes the person's own name. Members cannot write their member doc, so this is the only path.
+ * Memberships not mirrored yet are covered by onMemberWrite, which also copies the profile name.
+ */
+export const onUserWrite = onDocumentWritten(
+  { document: 'users/{uid}', region: REGION },
+  async (event) => {
+    const { uid } = event.params;
+    const before = event.data?.before.exists ? event.data.before.get('name') : undefined;
+    const after = event.data?.after.exists ? event.data.after.get('name') : undefined;
+    if (typeof after !== 'string' || !after.trim() || after === before) return;
+    // A late or retried delivery must not restore an older name: use the profile as it is now.
+    const now = (await db.doc(`users/${uid}`).get()).get('name');
+    if (typeof now !== 'string' || !now.trim()) return;
+    const teams = await db.collection(`users/${uid}/teams`).get();
+    await Promise.all(teams.docs.map(async (t) => {
+      const m = await db.doc(`teams/${t.id}/members/${uid}`).get();
+      if (m.exists && m.get('name') !== now) await syncMemberName(t.id, uid, now);
+    }));
   },
 );
 

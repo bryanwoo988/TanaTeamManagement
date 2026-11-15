@@ -129,3 +129,36 @@ describe('onMemberWrite', () => {
     expect((await waitFor(() => userTeam(bob.uid, teamId), (d) => !d.exists)).exists).toBe(false);
   });
 });
+
+describe('member names follow the profile', () => {
+  const member = (teamId: string, uid: string) => db.doc(`teams/${teamId}/members/${uid}`).get();
+
+  it('an invited number: first login, then profile setup, replaces the admin-entered name', async () => {
+    const { teamId } = await as(alice).call('createTeam', { name: 'East Farm' });
+    await as(alice).call('addMemberByPhone', { teamId, phone: '0127770000', name: 'Admin Typed', role: 'member' });
+    await call('requestLoginCode', { phone: '0127770000' });
+    const { uid } = await call('verifyLoginCode', { phone: '0127770000', code: '123456' });
+    expect((await member(teamId, uid)).get('name')).toBe('Admin Typed');
+    await db.doc(`users/${uid}`).set({ name: 'Real Name', phone: '+60127770000', lang: 'en', notify: {}, digestTime: '20:00', createdAt: Timestamp.now() });
+    expect((await waitFor(() => member(teamId, uid), (d) => d.get('name') === 'Real Name')).get('name')).toBe('Real Name');
+  });
+
+  it('an Auth-only user added by phone gets their own name once they set up a profile', async () => {
+    const { teamId } = await as(alice).call('createTeam', { name: 'East Farm' });
+    const u = await getAuth().createUser({ phoneNumber: '+60125550000' });
+    await as(alice).call('addMemberByPhone', { teamId, phone: '0125550000', name: 'Dan', role: 'member' });
+    await db.doc(`users/${u.uid}`).set({ name: 'Daniel Lee', phone: '+60125550000', lang: 'en', notify: {}, digestTime: '20:00', createdAt: Timestamp.now() });
+    expect((await waitFor(() => member(teamId, u.uid), (d) => d.get('name') === 'Daniel Lee')).get('name')).toBe('Daniel Lee');
+  });
+
+  it('renaming the profile renames every membership', async () => {
+    const a = await as(alice).call('createTeam', { name: 'East Farm' });
+    const b = await as(bob).call('createTeam', { name: 'West Farm' });
+    await as(bob).call('addMemberByPhone', { teamId: b.teamId, phone: alice.phone, name: 'A', role: 'member' });
+    await waitFor(() => userTeam(alice.uid, b.teamId), (d) => d.exists);
+    await waitFor(() => userTeam(alice.uid, a.teamId), (d) => d.exists);
+    await db.doc('users/alice').update({ name: 'Alice Tan' });
+    expect((await waitFor(() => member(a.teamId, 'alice'), (d) => d.get('name') === 'Alice Tan')).get('name')).toBe('Alice Tan');
+    expect((await waitFor(() => member(b.teamId, 'alice'), (d) => d.get('name') === 'Alice Tan')).get('name')).toBe('Alice Tan');
+  });
+});
