@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
+import { useSearchParams } from 'react-router';
 import { Plus } from 'lucide-react';
 import { db } from '../firebase';
 import { useAuth } from '../auth/AuthProvider';
 import { useTeams } from '../team/TeamContext';
 import TeamSwitcher from '../team/TeamSwitcher';
+import Bell from '../notify/Bell';
 import { useAppearance } from '../theme/appearance';
 import { THEMES } from '../theme/themes';
 import { useT } from '../i18n';
@@ -49,9 +51,13 @@ export default function CalendarPage() {
   const theme = THEMES[ap.mode === 'dark' || (ap.mode === 'system' && prefersDark()) ? ap.dark : ap.light];
 
   const today = klDate(new Date());
-  const [month, setMonth] = useState(today.slice(0, 7));
-  const [selected, setSelected] = useState(today);
-  const [disabled, setDisabled] = useState<string[]>(readDisabled);
+  // Notification links open /?date=YYYY-MM-DD and /?team=<id>&date=...
+  const [params] = useSearchParams();
+  const linkDate = /^\d{4}-\d{2}-\d{2}$/.test(params.get('date') ?? '') ? params.get('date')! : null;
+  const linkTeam = params.get('team');
+  const [month, setMonth] = useState((linkDate ?? today).slice(0, 7));
+  const [selected, setSelected] = useState(linkDate ?? today);
+  const [disabled, setDisabled] = useState<string[]>(() => { const d = readDisabled(); return linkTeam ? d.filter((x) => x !== linkTeam) : d; });
   const [byLayer, setByLayer] = useState<Record<string, CalEvent[]>>({});
   const [people, setPeople] = useState<Record<string, Person[]>>({});
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -125,7 +131,7 @@ export default function CalendarPage() {
 
   return (
     <>
-      <header className="topbar"><TeamSwitcher /></header>
+      <header className="topbar"><TeamSwitcher /><Bell /></header>
       <main className="stack" aria-hidden={overlay || undefined}>
         <h1>{t('cal.title')}</h1>
         <div className="chips" role="group" aria-label={t('cal.layers')}>

@@ -7,6 +7,8 @@ import { TeamProvider } from './team/TeamContext';
 import CalendarPage from './calendar/CalendarPage';
 import CreateJoinPage from './team/CreateJoinPage';
 import MembersPage from './team/MembersPage';
+import NotificationsPage from './notify/NotificationsPage';
+import PushBanner from './notify/PushBanner';
 import ConfirmHost from './ui/ConfirmHost';
 import Toaster from './ui/Toaster';
 
@@ -25,7 +27,7 @@ function Gate() {
     );
   }
   if (!profile) return <ProfileSetup />;
-  return <TeamProvider><Outlet /></TeamProvider>;
+  return <TeamProvider><PushBanner /><Outlet /></TeamProvider>;
 }
 
 function Shell() {
@@ -44,6 +46,7 @@ export const routes = [
     element: <Shell />,
     children: [
       { index: true, element: <CalendarPage /> },
+      { path: 'notifications', element: <NotificationsPage /> },
       { path: 'teams/new', element: <CreateJoinPage /> },
       { path: 'team/:teamId/members', element: <MembersPage /> },
     ],

@@ -27,6 +27,7 @@ vi.mock('../team/TeamContext', () => ({
     member: (id: string) => id === 't1' ? { role: 'member', status: 'active' } : undefined,
   }),
 }));
+vi.mock('../notify/Bell', () => ({ default: () => <div>bell</div> }));
 vi.mock('../team/TeamSwitcher', () => ({ default: () => <div>switcher</div> }));
 
 import CalendarPage from './CalendarPage';
@@ -52,6 +53,15 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('CalendarPage', () => {
+  it('opens the day and layer named by a notification link', async () => {
+    localStorage.setItem('calLayers', JSON.stringify(['t1']));
+    render(<MemoryRouter initialEntries={['/?team=t1&date=2026-12-05']}><CalendarPage /></MemoryRouter>);
+    await act(async () => {});
+    expect(listEvents).toHaveBeenCalledWith('personal', '2026-12-01', '2026-12-31', expect.any(Function), expect.any(Function));
+    expect(screen.getByRole('button', { name: '2026-12-05' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Farm' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('overlays personal and active team events; pending teams are not a layer', async () => {
     await setup();
     expect(listEvents).toHaveBeenCalledWith('personal', '2026-11-01', '2026-11-30', expect.any(Function), expect.any(Function));
