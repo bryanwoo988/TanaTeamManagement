@@ -5,6 +5,7 @@ import AsyncButton from '../ui/AsyncButton';
 import { confirmSheet } from '../ui/confirm';
 import { toast, toastError } from '../ui/toast';
 import { deleteEvent, saveEvent, type CalEvent, type Scope } from './data';
+import { useSwipeToClose } from '../ui/useSwipeToClose';
 
 export interface EditorLayer { id: string; name: string; admin: boolean }
 export interface Person { uid: string; name: string }
@@ -72,9 +73,10 @@ export default function EventEditor({ event, date, layers, initialLayer, members
     setAssignees((a) => (a.includes(u) ? a.filter((x) => x !== u) : [...a, u]));
   }
 
+  const sheetRef = useSwipeToClose<HTMLDivElement>(onClose);
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={event ? t('cal.edit') : t('cal.new')} onClick={(e) => e.stopPropagation()}>
+      <div ref={sheetRef} className="sheet" role="dialog" aria-modal="true" aria-label={event ? t('cal.edit') : t('cal.new')} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" aria-hidden />
         <h2 className="sheet-title">{event ? t('cal.edit') : t('cal.new')}</h2>
         {readOnly && <p className="muted">{t('cal.readOnly')}</p>}

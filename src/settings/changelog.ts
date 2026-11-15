@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 /** Newest first. The newest entry's date is replaced by the real build time on the About page. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.4.2',
+    date: '2026-11-16 06:58',
+    items: {
+      zh: ['弹出的表单可以往下拉来关闭'],
+      en: ['Pull a pop-up form down to close it'],
+      ms: ['Tarik borang timbul ke bawah untuk menutupnya'],
+    },
+  },
+  {
     version: '1.4.1',
     date: '2026-11-16 06:50',
     items: {

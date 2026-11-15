@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useT } from '../i18n';
 import { answer, usePendingConfirm } from './confirm';
+import { useSwipeToClose } from './useSwipeToClose';
 
 export default function ConfirmHost() {
   const { t } = useT();
@@ -11,10 +12,11 @@ export default function ConfirmHost() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [p]);
+  const sheetRef = useSwipeToClose<HTMLDivElement>(() => answer(false));
   if (!p) return null;
   return (
     <div className="sheet-backdrop" onClick={() => answer(false)}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={p.title} onClick={(e) => e.stopPropagation()}>
+      <div ref={sheetRef} className="sheet" role="dialog" aria-modal="true" aria-label={p.title} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" aria-hidden />
         <h2 className="sheet-title">{p.title}</h2>
         {p.body && <p className="muted">{p.body}</p>}

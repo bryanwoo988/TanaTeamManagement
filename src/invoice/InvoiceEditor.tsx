@@ -7,6 +7,7 @@ import AsyncButton from '../ui/AsyncButton';
 import { toast, toastError } from '../ui/toast';
 import { compressImage } from './compress';
 import { listEventsAround, photoUrl, saveInvoice, type InvoiceRow, type SaveState } from './data';
+import { useSwipeToClose } from '../ui/useSwipeToClose';
 
 const MAX_SEN = 100_000_000;
 const MAX_RELATED = 20;
@@ -115,9 +116,10 @@ export default function InvoiceEditor({ teamId, invoice, canProcess, members, ca
   const pct = Math.round((progress ?? 0) * 100);
   const title = invoice ? t('inv.edit') : t('inv.new');
 
+  const sheetRef = useSwipeToClose<HTMLDivElement>(onClose, !saving);
   return (
     <div className="sheet-backdrop" onClick={() => { if (!saving) onClose(); }}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+      <div ref={sheetRef} className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" aria-hidden />
         <h2 className="sheet-title">{title}</h2>
         <div className="stack">

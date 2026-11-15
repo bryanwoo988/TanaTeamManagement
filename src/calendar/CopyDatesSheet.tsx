@@ -5,6 +5,7 @@ import AsyncButton from '../ui/AsyncButton';
 import { toastError } from '../ui/toast';
 import { MonthHeader, monthGrid, weekdayNames } from './MonthView';
 import { addDays } from '../../shared/dates';
+import { useSwipeToClose } from '../ui/useSwipeToClose';
 
 function shiftMonth(month: string, delta: number): string {
   const [y, m] = month.split('-').map(Number);
@@ -36,9 +37,10 @@ export default function CopyDatesSheet({ sourceDate, onCopy, onClose }: {
     } catch (e) { toastError(); throw e; }
   }
 
+  const sheetRef = useSwipeToClose<HTMLDivElement>(onClose);
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={t('cal.copy')} onClick={(e) => e.stopPropagation()}>
+      <div ref={sheetRef} className="sheet" role="dialog" aria-modal="true" aria-label={t('cal.copy')} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" aria-hidden />
         <h2 className="sheet-title">{t('cal.pickDates')}</h2>
         <MonthHeader month={month} onMonth={(d) => setMonth((m) => shiftMonth(m, d))} />
