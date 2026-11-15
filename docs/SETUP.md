@@ -11,6 +11,7 @@
 1. 打开 <https://console.firebase.google.com>，用你的 Google 账号登录。
 2. 按 **「建立项目」**，名字例如 `tana-team`。Google Analytics 可以关掉。
 3. 建好后，记下 **项目 ID**（项目设定 → 一般，例如 `tana-team-1a2b3`）。下面用 `你的项目ID` 代表它。
+4. 同一页还有 **项目编号**（一串数字，例如 `123456789012`），第 8 节会用到。
 
 ## 2. 升级到 Blaze 方案并设 USD 5 预算提醒（一定要做）
 
@@ -70,12 +71,12 @@ TTL 政策建好后要几分钟才生效；删除本身也可能延迟最多一�
 
 导出 PDF 时，网页会直接下载发票照片放进 PDF。浏览器默认不允许网页这样读取 Storage 的图片，所以要给 bucket 设 CORS，否则 PDF 里的照片会是空白。
 
-1. 在电脑上建一个 `cors.json`：
+1. 项目根目录已经有一个范例 `cors.json`，内容如下。用文字编辑器打开，把两处 `YOUR_PROJECT_ID` 换成 `你的项目ID`，储存：
 
 ```json
 [
   {
-    "origin": ["https://你的项目ID.web.app", "https://你的项目ID.firebaseapp.com"],
+    "origin": ["https://YOUR_PROJECT_ID.web.app", "https://YOUR_PROJECT_ID.firebaseapp.com"],
     "method": ["GET"],
     "responseHeader": ["Content-Type"],
     "maxAgeSeconds": 3600
@@ -140,7 +141,7 @@ npx firebase functions:secrets:set VAPID_PUBLIC_KEY        # 第 7 步的 Public
 npx firebase functions:secrets:set VAPID_PRIVATE_KEY       # 第 7 步的 Private Key
 ```
 
-3. Google Cloud Console → **IAM**：给 `项目编号-compute@developer.gserviceaccount.com` 加角色 **Service Account Token Creator**（让函数能签发登录凭证）。
+3. Google Cloud Console → **IAM**：给 `项目编号-compute@developer.gserviceaccount.com`（`项目编号` 是第 1 节第 4 步记下的那串数字，也可以在 Firebase 控制台 → 项目设定 → 一般 找到）加角色 **Service Account Token Creator**（让函数能签发登录凭证）。
 
 ## 9. 设定档
 
@@ -153,14 +154,7 @@ TWILIO_VERIFY_SERVICE_SID=VA…（第 6 步）
 VAPID_SUBJECT=mailto:你的邮箱
 ```
 
-### 9.2 App Check（reCAPTCHA Enterprise）
-
-登录函数在正式环境会强制 App Check，没设定的话**登录会失败**。
-
-1. 打开 <https://console.cloud.google.com/security/recaptcha>（选同一个项目）→ **建立金钥** → 类型 **网站**，网域填 `你的项目ID.web.app` 和 `你的项目ID.firebaseapp.com`。记下 **金钥 ID**。
-2. Firebase 控制台 → **App Check** → 选你的 Web App（先做 9.3 注册 Web App）→ **reCAPTCHA Enterprise** → 贴上金钥 ID → 储存。
-
-### 9.3 网页设定：`.env.local`
+### 9.2 注册 Web App 与网页设定：`.env.local`
 
 1. Firebase 控制台 → 项目设定 → **你的应用程式** → 按 **</>**（网页）→ 名字随意 → 注册。
 2. 在项目根目录建立 `.env.local`，把 `firebaseConfig` 的数值填进去：
@@ -172,12 +166,20 @@ VITE_FIREBASE_PROJECT_ID=你的项目ID
 VITE_FIREBASE_STORAGE_BUCKET=你的bucket名字
 VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
-VITE_RECAPTCHA_KEY=（9.2 的金钥 ID）
+VITE_RECAPTCHA_KEY=（先留空，9.3 做完再填）
 VITE_VAPID_PUBLIC_KEY=（第 7 步的 Public Key）
 VITE_USE_EMULATORS=false
 ```
 
 `.env.local` 已在 `.gitignore` 里，不会被提交。
+
+### 9.3 App Check（reCAPTCHA Enterprise）
+
+登录函数在正式环境会强制 App Check，没设定的话**登录会失败**。
+
+1. 打开 <https://console.cloud.google.com/security/recaptcha>（选同一个项目）→ **建立金钥** → 类型 **网站**，网域填 `你的项目ID.web.app` 和 `你的项目ID.firebaseapp.com`。记下 **金钥 ID**。
+2. Firebase 控制台 → **App Check** → 选 9.2 注册的 Web App → **reCAPTCHA Enterprise** → 贴上金钥 ID → 储存。
+3. 回到 `.env.local`，把金钥 ID 填进 `VITE_RECAPTCHA_KEY=`。
 
 ## 10. 部署
 
@@ -208,6 +210,7 @@ npm run deploy
 ## 日常注意
 
 - **Twilio 余额**：和教会 App 共用。收到低余额邮件就尽快充值，否则两边同时无法登录。
+- **每日摘要和批量通知最多发一次**：「明日工作」摘要和一次复制到多个日期的「新工作」通知，会先记下「已发」再发送。万一发送途中出错，系统不会重发（宁可漏一次，也不会重复轰炸）。漏了的话，打开 App 的日历一样看得到工作。
 - **费用**：几个人用通常每月不到 USD 1（主要是短信）。收到 USD 5 预算提醒时，到 Google Cloud Console → 结算 → 报表看是哪一项。
 
 ## 本地开发与测试（给开发者）
