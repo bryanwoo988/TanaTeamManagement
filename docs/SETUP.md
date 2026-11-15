@@ -216,7 +216,7 @@ npm run deploy
 
 1. <https://console.cloud.google.com/iam-admin/iam?project=tana-team> → **Grant access**（授予访问权限）
 2. New principals 填 `tana-deployer@tana-team.iam.gserviceaccount.com`
-3. 加三个角色：**Editor**、**Secret Manager Admin**、**Project IAM Admin** → Save
+3. 加五个角色：**Editor**、**Secret Manager Admin**、**Project IAM Admin**、**Cloud Functions Admin**、**Cloud Run Admin** → Save（后两个用来让新函数开放给 App 呼叫；少了它们，新增函数时部署会失败并显示 “Unable to set the invoker”）
 
 ### 13.2 建金钥（只用一次，放进 GitHub 后删掉本机档案）
 
