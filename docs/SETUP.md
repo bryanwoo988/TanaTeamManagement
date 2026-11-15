@@ -207,6 +207,44 @@ npm run deploy
 
 ---
 
+## 13. 自动部署（GitHub Actions，不用 Cloud Shell）
+
+设定一次后，`main` 每次更新，GitHub 会自动测试并部署到 Firebase（约 5–10 分钟）。平常的流程：Claude 改好代码 → 开 Pull Request → 你在 GitHub 按 **Merge** → 自动上线。进度在 GitHub 仓库的 **Actions** 分页看。
+
+### 13.1 给部署账号权限（Google Cloud 网页）
+
+1. <https://console.cloud.google.com/iam-admin/iam?project=tana-team> → **Grant access**（授予访问权限）
+2. New principals 填 `tana-deployer@tana-team.iam.gserviceaccount.com`
+3. 加三个角色：**Editor**、**Secret Manager Admin**、**Project IAM Admin** → Save
+
+### 13.2 建金钥（只用一次，放进 GitHub 后删掉本机档案）
+
+1. <https://console.cloud.google.com/iam-admin/serviceaccounts?project=tana-team> → 点 `tana-deployer` → **Keys** → **Add key → Create new key → JSON** → 会下载一个 `.json` 档
+2. 用文字编辑器打开它，全选复制（13.3 要贴）
+3. 贴进 GitHub 后，**把下载的 .json 档删掉**（也清空垃圾桶）
+
+### 13.3 GitHub Secrets
+
+GitHub 仓库 → **Settings → Secrets and variables → Actions → New repository secret**，建五个：
+
+| 名称 | 值 |
+|---|---|
+| `FIREBASE_SERVICE_ACCOUNT` | 13.2 的整个 JSON 内容 |
+| `FIREBASE_API_KEY` | Firebase → 项目设定 → 你的应用程式 → Config 里的 `apiKey`（`AIza…`，从 Firebase 后台复制，不要从聊天记录复制） |
+| `RECAPTCHA_KEY` | 9.3 的 reCAPTCHA 金钥 ID（`6L…`） |
+| `VAPID_PUBLIC_KEY` | 第 7 步的 Public Key |
+| `VAPID_SUBJECT` | `mailto:你的邮箱` |
+
+### 13.4 第一次跑
+
+GitHub → **Actions** → **Deploy** → **Run workflow**。绿色 ✓ 就是成功；红色 ✗ 点进去看哪一步失败。
+
+### 安全
+
+- 金钥只存在 GitHub Secrets（加密、记录里会遮蔽），本机不要留副本。
+- 要停用自动部署：Google Cloud → 服务账号 `tana-deployer` → Keys → 删除那把金钥。
+- 怀疑金钥外泄：同上删除，再建一把新的，更新 `FIREBASE_SERVICE_ACCOUNT`。
+
 ## 日常注意
 
 - **Twilio 余额**：和教会 App 共用。收到低余额邮件就尽快充值，否则两边同时无法登录。

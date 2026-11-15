@@ -1,0 +1,86 @@
+# Deploys to Firebase (project tana-team) whenever main changes.
+# Needs these repository secrets (Settings → Secrets and variables → Actions):
+#   FIREBASE_SERVICE_ACCOUNT  JSON key of tana-deployer@tana-team.iam.gserviceaccount.com
+#   FIREBASE_API_KEY          web apiKey from Firebase project settings
+#   RECAPTCHA_KEY             reCAPTCHA (Fraud Defense) site key used by App Check
+#   VAPID_PUBLIC_KEY          public half of the Web Push key pair
+#   VAPID_SUBJECT             mailto:you@example.com
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Write config files
+        env:
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          RECAPTCHA_KEY: ${{ secrets.RECAPTCHA_KEY }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+        run: |
+          for v in FIREBASE_API_KEY RECAPTCHA_KEY VAPID_PUBLIC_KEY VAPID_SUBJECT; do
+            if [ -z "${!v}" ]; then echo "::error::Missing repository secret $v"; exit 1; fi
+          done
+          # Format checks so a mistyped secret stops the deploy instead of shipping a broken site.
+          bad=0
+          [[ "$FIREBASE_API_KEY" =~ ^AIza[0-9A-Za-z_-]{35}$ ]] || { echo "::error::FIREBASE_API_KEY should be 39 characters starting with AIza (copy it from Firebase project settings)"; bad=1; }
+          [[ "$RECAPTCHA_KEY" =~ ^6L[0-9A-Za-z_-]{38}$ ]] || { echo "::error::RECAPTCHA_KEY should be 40 characters starting with 6L"; bad=1; }
+          [[ "$VAPID_PUBLIC_KEY" =~ ^B[0-9A-Za-z_-]{86}$ ]] || { echo "::error::VAPID_PUBLIC_KEY should be 87 characters starting with B (the Public Key, not the Private Key)"; bad=1; }
+          [[ "$VAPID_SUBJECT" =~ ^mailto:[^[:space:]]+@[^[:space:]]+$ ]] || { echo "::error::VAPID_SUBJECT should look like mailto:you@example.com"; bad=1; }
+          [ "$bad" = 0 ] || exit 1
+          cat > .env.local <<CFG
+          VITE_FIREBASE_API_KEY=${FIREBASE_API_KEY}
+          VITE_FIREBASE_AUTH_DOMAIN=tana-team.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID=tana-team
+          VITE_FIREBASE_STORAGE_BUCKET=tana-team.firebasestorage.app
+          VITE_FIREBASE_MESSAGING_SENDER_ID=129330685090
+          VITE_FIREBASE_APP_ID=1:129330685090:web:0473d674cceafc77e963fb
+          VITE_RECAPTCHA_KEY=${RECAPTCHA_KEY}
+          VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+          VITE_USE_EMULATORS=false
+          CFG
+          printf 'TWILIO_VERIFY_SERVICE_SID=VA0f32bbb4b539549ec791d109b3dbd335\nVAPID_SUBJECT=%s\n' "$VAPID_SUBJECT" > functions/.env.tana-team
+
+      - name: Build
+        run: npm run build
+
+      - name: Check service account secret
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          node -e '
+            let j; try { j = JSON.parse(process.env.SA_JSON || ""); } catch { console.log("::error::FIREBASE_SERVICE_ACCOUNT is not valid JSON - paste the whole downloaded .json file"); process.exit(1); }
+            if (j.type !== "service_account" || j.project_id !== "tana-team" || !String(j.client_email).startsWith("tana-deployer@")) { console.log("::error::FIREBASE_SERVICE_ACCOUNT should be the JSON key of tana-deployer in project tana-team"); process.exit(1); }
+            console.log("service account secret looks right");
+          '
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Firebase
+        run: npx firebase deploy --project tana-team --non-interactive --force
