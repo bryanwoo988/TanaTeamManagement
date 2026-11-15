@@ -1,9 +1,6 @@
-import { doc, updateDoc } from 'firebase/firestore';
 import type { Lang } from '../../shared/types';
-import { useAuth } from '../auth/AuthProvider';
-import { db } from '../firebase';
-import { toastError } from '../ui/toast';
 import { useT } from './index';
+import { useChooseLang } from './useChooseLang';
 
 const OPTIONS: { lang: Lang; label: string }[] = [
   { lang: 'zh', label: '华语' },
@@ -12,13 +9,8 @@ const OPTIONS: { lang: Lang; label: string }[] = [
 ];
 
 export default function LanguagePicker() {
-  const { t, lang, setLang } = useT();
-  const { user, profile } = useAuth();
-  const choose = (l: Lang) => {
-    setLang(l);
-    // The server writes pushes and in-app notices in the profile's language (spec §6.7).
-    if (user && profile && profile.lang !== l) updateDoc(doc(db, 'users', user.uid), { lang: l }).catch(() => toastError());
-  };
+  const { t, lang } = useT();
+  const choose = useChooseLang();
   return (
     <div role="group" aria-label={t('settings.language')} className="lang-picker">
       {OPTIONS.map((o) => (

@@ -4,7 +4,7 @@ import { CalendarDays, Receipt, Users } from 'lucide-react';
 import { auth } from '../firebase';
 import { requestLoginCode, verifyLoginCode } from '../api';
 import { useT, type MessageKey } from '../i18n';
-import LanguagePicker from '../i18n/LanguagePicker';
+import InlineLangSwitch from '../i18n/InlineLangSwitch';
 import { normalizeMyPhone } from '../../shared/phone';
 import { authErrorKey, detailFor } from './authErrors';
 
@@ -15,6 +15,19 @@ function serverPhone(input: string): string | null {
   if (normalizeMyPhone(input).ok) return input.trim();
   const withZero = '0' + input.replace(/\D/g, '');
   return normalizeMyPhone(withZero).ok ? withZero : null;
+}
+
+/** Local digits as typed or pasted (+60…, 0…, spaces) → "12-345 6789" / "11-2345 6789", capped. */
+export function formatLocalPhone(input: string): string {
+  let d = input.replace(/\D/g, '');
+  if (d.startsWith('60')) d = d.slice(2);
+  if (d.startsWith('0')) d = d.slice(1);
+  d = d.slice(0, d.startsWith('11') ? 10 : 9);
+  if (d.length <= 2) return d;
+  const a = d.slice(0, 2);
+  const rest = d.slice(2);
+  const cut = d.startsWith('11') ? 4 : 3;
+  return rest.length <= cut ? `${a}-${rest}` : `${a}-${rest.slice(0, cut)} ${rest.slice(cut)}`;
 }
 
 /** +60123456789 → "+60 12-345 6789"; +601123456789 → "+60 11-2345 6789". */
@@ -110,7 +123,7 @@ export default function LoginPage() {
             <div className="phone-field">
               <span className="phone-cc" aria-label={t('login.country')}><span aria-hidden>🇲🇾</span> +60</span>
               <input id="phone" type="tel" inputMode="tel" autoComplete="tel-national" placeholder={t('login.phonePlaceholder')}
-                value={phone} onChange={(e) => setPhone(e.target.value)} />
+                value={phone} onChange={(e) => setPhone(formatLocalPhone(e.target.value))} />
             </div>
             <p className="muted small">{t('login.phoneHint')}</p>
             {errorBox}
@@ -137,7 +150,7 @@ export default function LoginPage() {
             </div>
           </form>
         )}
-        <div className="login-lang"><LanguagePicker /></div>
+        <div className="login-lang"><InlineLangSwitch /></div>
       </section>
     </main>
   );

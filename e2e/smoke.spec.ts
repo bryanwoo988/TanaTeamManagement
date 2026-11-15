@@ -9,6 +9,7 @@ const SHOTS = fileURLToPath(new URL('./screenshots/', import.meta.url));
 /** A phone-sized browser at deviceScaleFactor 1 (screenshots are reviewed at real pixel size). */
 async function phone(browser: Browser): Promise<Page> {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, locale: 'en-US' });
+  await ctx.addInitScript(() => localStorage.setItem('lang', 'en')); // skip the first-run language chooser
   const page = await ctx.newPage();
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log('[browser]', m.text()); });
   page.on('pageerror', (e) => console.log('[pageerror]', e.message));

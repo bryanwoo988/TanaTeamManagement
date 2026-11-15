@@ -154,6 +154,13 @@ h2.err { color: var(--err); }
 .boot { min-height: 100dvh; display: grid; place-items: center; }
 .profile-setup { padding: calc(24px + var(--safe-top)) 16px 24px; max-width: 480px; margin: 0 auto; }
 .login-lang .lang-picker { justify-content: center; }
+.lang-switch { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0 6px; min-height: 44px; }
+.lang-link { background: none; border: 0; padding: 0 4px; min-height: 44px; font: inherit; font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.first-run { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px 16px; text-align: center; background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg) 55%); color: var(--fg); }
+.first-run h1 { margin: 0; font-size: 1.5rem; }
+.first-run-sub { margin: 0 0 12px; color: var(--muted); }
+.first-run-options { display: grid; gap: 12px; width: 100%; max-width: 320px; }
+.first-run-options .btn { min-height: 56px; font-size: 1.1rem; border-radius: 999px; }
 /* ---------- teams ---------- */
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(8px + var(--safe-top)) 16px 8px; }
 .team-switcher { position: relative; }

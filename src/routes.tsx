@@ -3,6 +3,7 @@ import { useAuth } from './auth/AuthProvider';
 import LoginPage from './auth/LoginPage';
 import ProfileSetup from './auth/ProfileSetup';
 import { useT } from './i18n';
+import FirstRunGate from './i18n/FirstRunGate';
 import { TeamProvider } from './team/TeamContext';
 import CalendarPage from './calendar/CalendarPage';
 import CreateJoinPage from './team/CreateJoinPage';
@@ -39,7 +40,7 @@ function Gate() {
 function Shell() {
   return (
     <>
-      <Gate />
+      <FirstRunGate><Gate /></FirstRunGate>
       <Toaster />
       <ConfirmHost />
     </>

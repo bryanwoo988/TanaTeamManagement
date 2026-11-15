@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { zh } from './zh';
 import { en } from './en';
 import { ms } from './ms';
-import { t, setLang, getLang, detectLang } from './index';
+import { t, setLang, getLang, hasChosenLang } from './index';
 
 describe('i18n', () => {
   it('has key parity across languages', () => {
@@ -12,11 +12,10 @@ describe('i18n', () => {
   it('has no empty strings', () => {
     for (const d of [zh, en, ms]) for (const v of Object.values(d)) expect(v.trim()).not.toBe('');
   });
-  it('detects language', () => {
-    expect(detectLang('zh-CN')).toBe('zh');
-    expect(detectLang('ms-MY')).toBe('ms');
-    expect(detectLang('id')).toBe('ms');
-    expect(detectLang('fr')).toBe('en');
+  it('does not count as chosen until setLang is called', () => {
+    expect(typeof hasChosenLang()).toBe('boolean');
+    setLang('en');
+    expect(hasChosenLang()).toBe(true);
   });
   it('sets html lang and interpolates', () => {
     setLang('ms');

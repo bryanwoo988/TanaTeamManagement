@@ -10,14 +10,6 @@ const dicts: Record<Lang, Record<MessageKey, string>> = { zh, en, ms };
 const htmlLang: Record<Lang, string> = { zh: 'zh-Hans', en: 'en', ms: 'ms' };
 const listeners = new Set<() => void>();
 
-/** Map a browser language tag to a supported language; Indonesian maps to Malay, unknown to English. */
-export function detectLang(navLang: string): Lang {
-  const l = (navLang || '').toLowerCase();
-  if (l.startsWith('zh')) return 'zh';
-  if (l.startsWith('ms') || l.startsWith('id')) return 'ms';
-  return 'en';
-}
-
 function readStored(): Lang | null {
   try {
     const v = localStorage.getItem('lang');
@@ -27,16 +19,23 @@ function readStored(): Lang | null {
   }
 }
 
-let current: Lang =
-  readStored() ?? detectLang(typeof navigator !== 'undefined' ? navigator.language : 'en');
+const stored = readStored();
+// English until the person picks a language; first-time visitors are asked (FirstRunGate).
+let current: Lang = stored ?? 'en';
+let chosen = stored !== null;
 if (typeof document !== 'undefined') document.documentElement.lang = htmlLang[current];
 
 export function getLang(): Lang {
   return current;
 }
 
+export function hasChosenLang(): boolean {
+  return chosen;
+}
+
 export function setLang(l: Lang): void {
   current = l;
+  chosen = true;
   try {
     localStorage.setItem('lang', l);
   } catch {
@@ -60,4 +59,9 @@ function subscribe(fn: () => void) {
 export function useT() {
   const lang = useSyncExternalStore(subscribe, getLang);
   return { t, lang, setLang };
+}
+
+/** True once the person has picked a language (re-renders when they do). */
+export function useLangChosen(): boolean {
+  return useSyncExternalStore(subscribe, hasChosenLang);
 }
