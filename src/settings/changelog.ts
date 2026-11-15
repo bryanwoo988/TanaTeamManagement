@@ -7,11 +7,20 @@ export interface ChangelogEntry {
   items: Record<Lang, string[]>;
 }
 
-/** Newest first. 1.4.0's date is replaced by the real build time on the About page. */
+/** Newest first. The newest entry's date is replaced by the real build time on the About page. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.4.1',
+    date: '2026-11-16 06:50',
+    items: {
+      zh: ['打开新页面时从最上面开始显示'],
+      en: ['New pages now open at the top'],
+      ms: ['Halaman baharu kini dibuka dari atas'],
+    },
+  },
+  {
     version: '1.4.0',
-    date: '2026-11-16 09:00',
+    date: '2026-11-16 06:39',
     items: {
       zh: ['设置页改版', '显示版本和更新记录', '分享 App 的二维码和链接'],
       en: ['Settings page redesigned', 'Version and change history are shown', 'QR code and link to share the app'],

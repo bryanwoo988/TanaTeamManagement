@@ -20,6 +20,7 @@ import AppearancePage from './settings/AppearancePage';
 import SharePage from './settings/SharePage';
 import AboutPage from './settings/AboutPage';
 import BottomNav from './nav/BottomNav';
+import ScrollToTop from './nav/ScrollToTop';
 import PushBanner from './notify/PushBanner';
 import ConfirmHost from './ui/ConfirmHost';
 import Toaster from './ui/Toaster';
@@ -39,7 +40,7 @@ function Gate() {
     );
   }
   if (!profile) return <ProfileSetup />;
-  return <TeamProvider><PushBanner /><Outlet /><BottomNav /></TeamProvider>;
+  return <TeamProvider><ScrollToTop /><PushBanner /><Outlet /><BottomNav /></TeamProvider>;
 }
 
 function Shell() {
