@@ -1,3 +1,13 @@
+import { useState } from 'react';
+import { createBrowserRouter, RouterProvider } from 'react-router';
+import { AuthProvider } from './auth/AuthProvider';
+import { routes } from './routes';
+
 export default function App() {
-  return <main />;
+  const [router] = useState(() => createBrowserRouter(routes));
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  );
 }
