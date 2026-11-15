@@ -30,7 +30,7 @@ a { color: var(--accent); }
   cursor: pointer;
 }
 .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn:disabled, .btn.is-disabled { opacity: 0.55; cursor: not-allowed; }
 .lang-picker { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ---------- appearance settings ---------- */
@@ -67,7 +67,7 @@ main.stack > .topbar { margin: 0 -16px; }
 .btn.block { width: 100%; }
 .btn.danger { background: var(--err); color: var(--err-fg); border-color: var(--err); }
 .btn.is-done { background: var(--ok); border-color: var(--ok); color: var(--ok-fg); }
-.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:active:not(:disabled):not(.is-disabled) { transform: scale(0.97); }
 .icon-btn { -webkit-appearance: none; appearance: none; border: 0; background: transparent; color: inherit; padding: 6px; border-radius: 999px; display: inline-flex; cursor: pointer; }
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

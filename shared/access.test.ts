@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canEditEvent, canSeeInvoice, canProcessClaims, canExportInvoices, isActive } from './access';
+import { canEditEvent, canSeeInvoice, canProcessClaims, canExportInvoices, canUploadClaims, isActive } from './access';
 
 const admin = { role: 'admin', status: 'active' } as const;
 const fin = { role: 'finance', status: 'active' } as const;
@@ -7,6 +7,16 @@ const mem = { role: 'member', status: 'active' } as const;
 const pend = { role: 'admin', status: 'pending' } as const;
 
 describe('access', () => {
+  it('canUploadClaims: active members unless turned off; admin/finance always', () => {
+    expect(canUploadClaims(mem)).toBe(true);
+    expect(canUploadClaims({ ...mem, canUpload: true })).toBe(true);
+    expect(canUploadClaims({ ...mem, canUpload: false })).toBe(false);
+    expect(canUploadClaims({ ...admin, canUpload: false })).toBe(true);
+    expect(canUploadClaims({ ...fin, canUpload: false })).toBe(true);
+    expect(canUploadClaims(pend)).toBe(false);
+    expect(canUploadClaims({ role: 'member', status: 'pending' })).toBe(false);
+    expect(canUploadClaims(undefined)).toBe(false);
+  });
   it('canEditEvent', () => {
     expect(canEditEvent(mem, { assignees: ['u1'] }, 'u1')).toBe(true);
     expect(canEditEvent(mem, { assignees: ['u2'] }, 'u1')).toBe(false);

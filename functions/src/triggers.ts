@@ -35,7 +35,10 @@ export const onMemberWrite = onDocumentWritten(
     if (!memberNow.exists || !team.exists) await mirror.delete();
     else {
       const m = memberNow.data() as MemberDoc;
-      const doc: UserTeamDoc = { teamId, name: team.get('name') as string, role: m.role, status: m.status };
+      const doc: UserTeamDoc = {
+        teamId, name: team.get('name') as string, role: m.role, status: m.status,
+        ...(typeof m.canUpload === 'boolean' ? { canUpload: m.canUpload } : {}),
+      };
       await mirror.set(doc);
       const profileName = profile.get('name');
       if (typeof profileName === 'string' && profileName.trim() && profileName !== m.name) await syncMemberName(teamId, uid, profileName);

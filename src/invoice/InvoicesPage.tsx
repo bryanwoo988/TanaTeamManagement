@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { useT } from '../i18n';
-import { canProcessClaims } from '../../shared/access';
+import { canProcessClaims, canUploadClaims } from '../../shared/access';
 import { formatRM } from '../../shared/money';
 import type { ClaimStatus, InvoiceKind } from '../../shared/types';
 import { useTeams } from '../team/TeamContext';
@@ -20,6 +20,8 @@ export default function InvoicesPage() {
   const me = member(teamId);
   const uid = user?.uid ?? '';
   const finance = canProcessClaims(me);
+  // Turned off by an admin: the button stays visible but greyed out, with a note (rules also refuse new claims).
+  const uploadOff = !!me && !canUploadClaims(me);
   const info = useTeamInfo(teamId);
   const [kind, setKind] = useState<InvoiceKind | ''>('');
   const [status, setStatus] = useState<ClaimStatus | ''>('');
@@ -44,7 +46,9 @@ export default function InvoicesPage() {
       <main className="stack" aria-hidden={creating || undefined}>
         <p><Link to="/">{t('back')}</Link></p>
         <h1>{t('inv.title')}</h1>
-        <button type="button" className="btn primary block" onClick={() => setCreating(true)}>{t('inv.new')}</button>
+        <button type="button" className={`btn primary block${uploadOff ? ' is-disabled' : ''}`} aria-disabled={uploadOff || undefined}
+          aria-describedby={uploadOff ? 'upload-off-note' : undefined} onClick={() => { if (!uploadOff) setCreating(true); }}>{t('inv.new')}</button>
+        {uploadOff && <p id="upload-off-note" className="muted small">{t('inv.uploadOff')}</p>}
         {finance && <Link to={`/team/${teamId}/export`}>{t('export.link')}</Link>}
         {me?.role === 'admin' && <Link to={`/team/${teamId}/invoices/categories`}>{t('inv.categories')}</Link>}
 

@@ -310,6 +310,21 @@ describe('teams/{t}/members', () => {
     await assertFails(updateDoc(doc(as('admin'), 'teams/A/members/mem'), { name: 'Renamed' }));
     await assertFails(updateDoc(doc(as('admin'), 'teams/A/members/mem'), { uid: 'x' }));
   });
+  it('admin turns another member\'s receipt uploads off and on (bool only)', async () => {
+    await assertSucceeds(updateDoc(doc(as('admin'), 'teams/A/members/mem'), { canUpload: false }));
+    await assertSucceeds(updateDoc(doc(as('admin'), 'teams/A/members/mem'), { canUpload: true }));
+    await assertSucceeds(updateDoc(doc(as('admin'), 'teams/A/members/mem'), { canUpload: false, role: 'member' }));
+    await assertFails(updateDoc(doc(as('admin'), 'teams/A/members/mem'), { canUpload: 'no' }));
+    await assertFails(updateDoc(doc(as('admin'), 'teams/A/members/mem'), { canUpload: 0 }));
+  });
+  it('nobody toggles their own receipt uploads; finance and members cannot toggle others', async () => {
+    await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), 'teams/A/members/mem'), { canUpload: false }));
+    await assertFails(updateDoc(doc(as('mem'), 'teams/A/members/mem'), { canUpload: true }));
+    await assertFails(updateDoc(doc(as('admin'), 'teams/A/members/admin'), { canUpload: false }));
+    await assertFails(updateDoc(doc(as('fin'), 'teams/A/members/mem'), { canUpload: true }));
+    await assertFails(updateDoc(doc(as('mem2'), 'teams/A/members/mem'), { canUpload: true }));
+    await assertFails(updateDoc(doc(as('bAdmin'), 'teams/A/members/mem'), { canUpload: true }));
+  });
   it('admin cannot demote or delete self (last-admin protection)', async () => {
     await assertFails(updateDoc(doc(as('admin'), 'teams/A/members/admin'), { role: 'member' }));
     await assertFails(updateDoc(doc(as('admin'), 'teams/A/members/admin'), { role: 'admin' }));
@@ -511,6 +526,24 @@ describe('teams/{t}/invoices', () => {
     it('finance and admin can also file claims', async () => {
       await assertSucceeds(setDoc(doc(as('fin'), 'teams/A/invoices/c1'), claim('c1', { uploadedBy: 'fin', uploaderName: 'Fin' })));
     });
+    it('a member whose receipt uploads are off cannot create a claim; true or absent may', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), 'teams/A/members/mem'), { canUpload: false });
+        await updateDoc(doc(ctx.firestore(), 'teams/A/members/mem2'), { canUpload: true });
+      });
+      await assertFails(setDoc(doc(as('mem'), 'teams/A/invoices/c1'), claim('c1')));
+      await assertSucceeds(setDoc(doc(as('mem2'), 'teams/A/invoices/c2'), claim('c2', { uploadedBy: 'mem2', uploaderName: 'Mem2' })));
+      await assertSucceeds(setDoc(doc(as('bMem'), 'teams/B/invoices/c3'), claim('c3', { uploadedBy: 'bMem', uploaderName: 'bMem', photoPath: 'teams/B/invoices/c3/a.jpg' })));
+    });
+    it('finance and admin are unaffected by canUpload: false', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), 'teams/A/members/fin'), { canUpload: false });
+        await updateDoc(doc(ctx.firestore(), 'teams/A/members/admin'), { canUpload: false });
+      });
+      await assertSucceeds(setDoc(doc(as('fin'), 'teams/A/invoices/c1'), claim('c1', { uploadedBy: 'fin', uploaderName: 'Fin' })));
+      await assertSucceeds(setDoc(doc(as('admin'), 'teams/A/invoices/c2'), claim('c2', { uploadedBy: 'admin', uploaderName: 'Admin' })));
+      await assertSucceeds(setDoc(doc(as('fin'), 'teams/A/invoices/c3'), company('c3')));
+    });
     it('uploadedBy spoofing is rejected', async () => {
       await assertFails(setDoc(doc(as('mem'), 'teams/A/invoices/c1'), claim('c1', { uploadedBy: 'mem2' })));
       await assertFails(setDoc(doc(as('fin'), 'teams/A/invoices/c1'), company('c1', { uploadedBy: 'admin' })));
@@ -578,6 +611,11 @@ describe('teams/{t}/invoices', () => {
     it('owner may resubmit keeping the old reason, or edit while still rejected', async () => {
       await assertSucceeds(updateDoc(doc(as('mem'), 'teams/A/invoices/claimMemRej'), { notes: 'better photo', ...t() }));
       await assertSucceeds(updateDoc(doc(as('mem'), 'teams/A/invoices/claimMemRej'), { status: 'pending', ...t() }));
+    });
+    it('owner still edits and resubmits own claims after receipt uploads were turned off', async () => {
+      await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), 'teams/A/members/mem'), { canUpload: false }));
+      await assertSucceeds(updateDoc(doc(as('mem'), 'teams/A/invoices/claimMem'), { amountSen: 9900, ...t() }));
+      await assertSucceeds(updateDoc(doc(as('mem'), 'teams/A/invoices/claimMemRej'), { status: 'pending', rejectReason: deleteField(), photoPath: 'teams/A/invoices/claimMemRej/p2.jpg', ...t() }));
     });
     it('owner cannot set status reimbursed/rejected or touch a reimbursed claim', async () => {
       await assertFails(updateDoc(doc(as('mem'), 'teams/A/invoices/claimMem'), { status: 'reimbursed', ...t() }));

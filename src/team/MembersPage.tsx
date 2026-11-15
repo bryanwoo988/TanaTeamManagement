@@ -121,6 +121,15 @@ export default function MembersPage() {
                     <select aria-label={t('team.role')} value={m.role} onChange={(e) => guard(() => updateDoc(ref(m.id), { role: e.target.value }))}>
                       {ROLES.map((r) => <option key={r} value={r}>{t(`team.role.${r}`)}</option>)}
                     </select>
+                    {m.role === 'member' ? (
+                      <label className="row small">
+                        <input type="checkbox" checked={m.canUpload !== false}
+                          onChange={(e) => guard(() => updateDoc(ref(m.id), { canUpload: e.target.checked }))} />
+                        <span>{t('team.canUpload')}</span>
+                      </label>
+                    ) : (
+                      <span className="muted small">{t('team.canUpload')} · <span>{t('team.canUploadAlways')}</span></span>
+                    )}
                     <button type="button" className="btn danger" onClick={() => removeMember(m, 'team.removeTitle', 'team.remove')}>{t('team.remove')}</button>
                   </>
                 ) : <span className="muted small">{t(`team.role.${m.role}`)}</span>}

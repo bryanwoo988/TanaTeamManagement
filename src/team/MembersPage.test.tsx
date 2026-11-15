@@ -30,6 +30,8 @@ import { setLang } from '../i18n';
 const members = {
   me: { uid: 'me', name: 'Me', role: 'admin', status: 'active' },
   bob: { uid: 'bob', name: 'Bob', role: 'member', status: 'active' },
+  eve: { uid: 'eve', name: 'Eve', role: 'member', status: 'active', canUpload: false },
+  fay: { uid: 'fay', name: 'Fay', role: 'finance', status: 'active' },
   cat: { uid: 'cat', name: 'Cat', role: 'member', status: 'pending' },
 };
 const invites = { 't1_+60123456789': { teamId: 't1', phone: '+60123456789', name: 'Dan', role: 'member' } };
@@ -50,6 +52,31 @@ beforeEach(() => { vi.clearAllMocks(); listeners.clear(); myRole = 'admin'; setL
 const row = (name: string) => screen.getByText(name).closest('li') as HTMLElement;
 
 describe('MembersPage', () => {
+  it('admin: each active member has a "Can upload receipts" switch reflecting canUpload (absent = on)', async () => {
+    setup();
+    const bob = within(row('Bob')).getByRole('checkbox', { name: 'Can upload receipts' });
+    const eve = within(row('Eve')).getByRole('checkbox', { name: 'Can upload receipts' });
+    expect(bob).toBeChecked();
+    expect(eve).not.toBeChecked();
+    await userEvent.click(bob);
+    expect(updateDoc).toHaveBeenCalledWith({ path: 'teams/t1/members/bob' }, { canUpload: false });
+    await userEvent.click(eve);
+    expect(updateDoc).toHaveBeenCalledWith({ path: 'teams/t1/members/eve' }, { canUpload: true });
+  });
+
+  it('admin: finance/admin rows show "Always" instead of a switch; no switch on own row', () => {
+    setup();
+    expect(within(row('Fay')).queryByRole('checkbox')).toBeNull();
+    expect(within(row('Fay')).getByText('Always')).toBeInTheDocument();
+    expect(within(row('Me')).queryByRole('checkbox')).toBeNull();
+  });
+
+  it('non-admin sees no upload switches', () => {
+    myRole = 'member';
+    setup();
+    expect(screen.queryByRole('checkbox', { name: 'Can upload receipts' })).toBeNull();
+  });
+
   it('admin: approve sets status active', async () => {
     setup();
     await userEvent.click(within(row('Cat')).getByRole('button', { name: 'Approve' }));

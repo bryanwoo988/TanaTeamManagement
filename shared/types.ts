@@ -10,8 +10,9 @@ export const MANDATORY_KINDS: NotifyKind[] = ['assigned', 'changed'];
 export interface UserDoc { name: string; phone: string; lang: Lang;
   notify: Partial<Record<NotifyKind, boolean>>; digestTime: string /* HH:MM */; createdAt: Timestamp }
 export interface TeamDoc { name: string; createdBy: string; categories: string[]; createdAt: Timestamp }
-export interface MemberDoc { uid: string; name: string; role: Role; status: MemberStatus; joinedAt: Timestamp }
-export interface UserTeamDoc { teamId: string; name: string; role: Role; status: MemberStatus } // users/{uid}/teams/{teamId}, written by functions only
+/** `canUpload` (admin-set, members only): false = may not upload new expense claims. Absent = allowed. */
+export interface MemberDoc { uid: string; name: string; role: Role; status: MemberStatus; joinedAt: Timestamp; canUpload?: boolean }
+export interface UserTeamDoc { teamId: string; name: string; role: Role; status: MemberStatus; canUpload?: boolean } // users/{uid}/teams/{teamId}, written by functions only
 export interface EventDoc { title: string; date: string; allDay: boolean; start?: string; end?: string;
   assignees: string[]; place: string; notes: string; createdBy: string; updatedAt: Timestamp;
   batchId?: string }

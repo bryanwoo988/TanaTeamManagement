@@ -8,7 +8,8 @@ let fail: () => void = () => {};
 const listInvoices = vi.fn((_t: string, _f: unknown, _m: unknown, cb: (r: unknown[]) => void, onError?: () => void) => { feed = cb; fail = () => onError?.(); return () => {}; });
 vi.mock('./data', () => ({ listInvoices: (...a: unknown[]) => (listInvoices as (...x: unknown[]) => unknown)(...a) }));
 let role = 'member';
-vi.mock('../team/TeamContext', () => ({ useTeams: () => ({ member: () => ({ role, status: 'active' }) }) }));
+let canUpload: boolean | undefined;
+vi.mock('../team/TeamContext', () => ({ useTeams: () => ({ member: () => ({ role, status: 'active', ...(canUpload !== undefined ? { canUpload } : {}) }) }) }));
 vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ user: { uid: 'me' }, profile: { name: 'Me' } }) }));
 vi.mock('../team/TeamSwitcher', () => ({ default: () => <div>switcher</div> }));
 vi.mock('./useTeamInfo', () => ({ useTeamInfo: () => ({ categories: ['Fuel'], members: [{ uid: 'me', name: 'Me' }] }) }));
@@ -20,9 +21,37 @@ import { setLang } from '../i18n';
 const row = (id: string, over = {}) => ({ id, kind: 'claim', amountSen: 1250, date: '2026-11-10', vendor: 'Ah Seng', category: 'Fuel', notes: '', photoPath: 'p', uploadedBy: 'me', uploaderName: 'Me', relatedUids: [], status: 'pending', ...over });
 const setup = () => render(<MemoryRouter initialEntries={['/team/t1/invoices']}><Routes><Route path="/team/:teamId/invoices" element={<InvoicesPage />} /></Routes></MemoryRouter>);
 
-beforeEach(() => { vi.clearAllMocks(); setLang('en'); role = 'member'; });
+beforeEach(() => { vi.clearAllMocks(); setLang('en'); role = 'member'; canUpload = undefined; });
 
 describe('InvoicesPage', () => {
+  it('member with uploads allowed (default) can open the editor; no note', async () => {
+    setup();
+    const btn = screen.getByRole('button', { name: 'New' });
+    expect(btn).not.toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(btn);
+    expect(screen.getByText(/editor/)).toBeInTheDocument();
+    expect(screen.queryByText('Your admin has turned off receipt uploads for you.')).toBeNull();
+  });
+
+  it('member with uploads turned off sees New greyed out and disabled, with a note; list still loads', async () => {
+    canUpload = false;
+    setup();
+    const btn = screen.getByRole('button', { name: 'New' });
+    expect(btn).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByText('Your admin has turned off receipt uploads for you.')).toBeInTheDocument();
+    await userEvent.click(btn);
+    expect(screen.queryByText(/editor/)).toBeNull();
+    expect(listInvoices).toHaveBeenCalled();
+  });
+
+  it('finance is unaffected by canUpload false', async () => {
+    role = 'finance'; canUpload = false;
+    setup();
+    const btn = screen.getByRole('button', { name: 'New' });
+    expect(btn).not.toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByText('Your admin has turned off receipt uploads for you.')).toBeNull();
+  });
+
   it('top bar has no bell: notifications live in the bottom bar', () => {
     setup();
     expect(screen.queryByText('bell')).toBeNull();

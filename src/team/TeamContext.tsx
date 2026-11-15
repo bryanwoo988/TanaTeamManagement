@@ -10,7 +10,7 @@ export interface TeamState {
   /** A team id, or 'personal'. */
   current: string | 'personal';
   setCurrent: (id: string) => void;
-  /** The signed-in user's own record in a team (role/status), from the users/{uid}/teams index. */
+  /** The signed-in user's own record in a team (role/status/canUpload), from the users/{uid}/teams index. */
   member: (teamId: string) => MemberDoc | undefined;
 }
 
@@ -51,7 +51,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const member = (teamId: string) => {
       const t = teams.find((x) => x.teamId === teamId);
       // joinedAt is not part of the index; callers only read role/status.
-      return t && ({ uid: uid ?? '', name: t.name, role: t.role, status: t.status } as MemberDoc);
+      return t && ({ uid: uid ?? '', name: t.name, role: t.role, status: t.status, ...(t.canUpload !== undefined ? { canUpload: t.canUpload } : {}) } as MemberDoc);
     };
     let current: string;
     if (stored === null) {
