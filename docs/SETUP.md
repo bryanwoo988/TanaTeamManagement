@@ -114,7 +114,9 @@ gsutil cors set cors.json gs://你的bucket名字
 
 ## 7. Web Push（VAPID 金钥）
 
-推送通知需要一对 VAPID 金钥。在项目目录执行：
+> **2026-11-15 起不用再做这一步**：服务器第一次发送推送时会自动产生一对 VAPID 金钥，存在 Firestore 的 `_private/vapid`（客户端读不到）。下面的旧步骤和 Secret Manager 里的 `VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY` 都已不再使用，可以删除。
+
+（旧步骤，仅供参考）推送通知需要一对 VAPID 金钥。在项目目录执行：
 
 ```bash
 npx web-push generate-vapid-keys

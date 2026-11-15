@@ -34,7 +34,7 @@ export default function NotifySettings() {
       if (sent > 0) setTestMsg({ ok: true, text: t('notify.testOk', { n: sent }) });
       else if (results.length === 0) setTestMsg({ ok: false, text: t('notify.testNone') });
       else {
-        const codes = [...new Set(results.map((r) => (r.statusCode ? String(r.statusCode) : '?')))].join(', ');
+        const codes = [...new Set(results.map((r) => (r.statusCode ? String(r.statusCode) : (r.message || '?').slice(0, 80))))].join(', ');
         setTestMsg({ ok: false, text: t('notify.testFailed', { codes }) });
       }
     } catch (e) { toast({ kind: 'err', title: t('notify.testError'), body: errorDetail(e) }); throw e; }

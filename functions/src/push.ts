@@ -13,7 +13,7 @@ const CALLABLE = { region: REGION, invoker: 'public' as const, secrets: NOTIFY_S
  */
 export const getPushConfig = onCall(CALLABLE, async (request) => {
   requireAuth(request);
-  const key = vapidPublicKey();
+  const key = await vapidPublicKey();
   if (!key) throw new HttpsError('failed-precondition', 'push.notConfigured');
   return { vapidPublicKey: key };
 });

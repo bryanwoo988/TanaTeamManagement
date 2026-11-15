@@ -1,14 +1,40 @@
-import { defineSecret, defineString } from 'firebase-functions/params';
+import { defineString } from 'firebase-functions/params';
 import * as webpush from 'web-push';
 import { db, FieldValue, IS_EMULATOR } from './lib/admin';
 import { notifyText } from '../../shared/notifyText';
 import { MANDATORY_KINDS, type Lang, type MemberDoc, type NotifyKind, type PushSubDoc, type UserDoc } from '../../shared/types';
 
-const VAPID_PUBLIC_KEY = defineSecret('VAPID_PUBLIC_KEY');
-const VAPID_PRIVATE_KEY = defineSecret('VAPID_PRIVATE_KEY');
 const VAPID_SUBJECT = defineString('VAPID_SUBJECT');
-/** Every function that calls notifyUsers must declare these. */
-export const NOTIFY_SECRETS = [VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY];
+/**
+ * Kept so callers keep declaring it; the VAPID pair is no longer a Secret Manager secret (hand-entered
+ * keys were malformed in production). The server generates and stores its own pair — see vapidKeys().
+ */
+export const NOTIFY_SECRETS: never[] = [];
+
+interface VapidKeys { publicKey: string; privateKey: string }
+const VAPID_DOC = '_private/vapid';
+let vapidCache: Promise<VapidKeys> | null = null;
+
+/**
+ * The server's VAPID key pair, generated once and kept in a Firestore doc no client can read
+ * (rules have no match for `_private`). Concurrent first calls agree via create(): the loser re-reads.
+ */
+export function vapidKeys(): Promise<VapidKeys> {
+  vapidCache ??= (async () => {
+    const ref = db.doc(VAPID_DOC);
+    const snap = await ref.get();
+    if (snap.exists) return snap.data() as VapidKeys;
+    const fresh = webpush.generateVAPIDKeys();
+    try {
+      await ref.create({ ...fresh, createdAt: FieldValue.serverTimestamp() });
+      return fresh;
+    } catch (e: any) {
+      if (e?.code !== 6) throw e; // 6 = ALREADY_EXISTS: another instance won the race
+      return (await ref.get()).data() as VapidKeys;
+    }
+  })().catch((e) => { vapidCache = null; throw e; });
+  return vapidCache;
+}
 
 export interface Notification {
   kind: NotifyKind;
@@ -23,13 +49,12 @@ export interface Notification {
 /** Delivers one push message; on failure throws an error carrying the push service's HTTP `statusCode`. */
 export type PushSender = (sub: PushSubDoc, payload: string, uid: string) => Promise<void>;
 
-let vapidReady = false;
 const webPushSender: PushSender = async (sub, payload) => {
-  if (!vapidReady) {
-    webpush.setVapidDetails(VAPID_SUBJECT.value().trim(), VAPID_PUBLIC_KEY.value().trim(), VAPID_PRIVATE_KEY.value().trim());
-    vapidReady = true;
-  }
-  await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload, { TTL: 24 * 3600 });
+  const { publicKey, privateKey } = await vapidKeys();
+  await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload, {
+    TTL: 24 * 3600,
+    vapidDetails: { subject: VAPID_SUBJECT.value().trim(), publicKey, privateKey },
+  });
 };
 
 /** Local emulator only: never contacts a push service. Endpoints containing '/gone' or '/notfound' act expired. */
@@ -67,12 +92,9 @@ export async function pushAll(uid: string, payload: string): Promise<PushResult[
 }
 
 /** Emulator only: a fixed demo public key (its private half is never used, the emulator sender contacts no push service). */
-const EMULATOR_VAPID_PUBLIC_KEY = 'BJS3kMddDyD0GdJMmCGKxd-Wi58pWVtM8eShjtreEBzG0gY9u2bwZi09RJxxAe-Sgm-jw9cSuaOUSrjkUtg9Ff4';
-
-/** The VAPID public key the server signs pushes with: the single source of truth for clients. Needs NOTIFY_SECRETS. */
-export function vapidPublicKey(): string {
-  const key = VAPID_PUBLIC_KEY.value().trim();
-  return key || (IS_EMULATOR ? EMULATOR_VAPID_PUBLIC_KEY : '');
+/** The VAPID public key the server signs pushes with: the single source of truth for clients. */
+export async function vapidPublicKey(): Promise<string> {
+  return (await vapidKeys()).publicKey;
 }
 
 async function notifyOne(uid: string, n: Notification): Promise<void> {
