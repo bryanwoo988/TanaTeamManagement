@@ -4,7 +4,7 @@ import LoginPage from './auth/LoginPage';
 import ProfileSetup from './auth/ProfileSetup';
 import { useT } from './i18n';
 import { TeamProvider } from './team/TeamContext';
-import TeamSwitcher from './team/TeamSwitcher';
+import CalendarPage from './calendar/CalendarPage';
 import CreateJoinPage from './team/CreateJoinPage';
 import MembersPage from './team/MembersPage';
 import ConfirmHost from './ui/ConfirmHost';
@@ -28,17 +28,6 @@ function Gate() {
   return <TeamProvider><Outlet /></TeamProvider>;
 }
 
-function Home() {
-  const { profile } = useAuth();
-  const { t } = useT();
-  return (
-    <>
-      <header className="topbar"><TeamSwitcher /></header>
-      <main><h1>{t('greet', { name: profile?.name ?? '' })}</h1></main>
-    </>
-  );
-}
-
 function Shell() {
   return (
     <>
@@ -54,7 +43,7 @@ export const routes = [
     path: '/',
     element: <Shell />,
     children: [
-      { index: true, element: <Home /> },
+      { index: true, element: <CalendarPage /> },
       { path: 'teams/new', element: <CreateJoinPage /> },
       { path: 'team/:teamId/members', element: <MembersPage /> },
     ],
