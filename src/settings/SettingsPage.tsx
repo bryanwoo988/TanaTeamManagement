@@ -94,7 +94,7 @@ export default function SettingsPage() {
             <NavRow to={`/team/${teamId}/export`} icon={<FileDown size={20} />} label={t('export.link')} />
           </section>
           {leaveError && <p className="err" role="alert">{t(leaveError)}</p>}
-          <AsyncButton className="btn danger block" onClick={leave}>{t('settings.leave')}</AsyncButton>
+          <AsyncButton className="btn block leave-team" onClick={leave}>{t('settings.leave')}</AsyncButton>
         </>
       )}
 

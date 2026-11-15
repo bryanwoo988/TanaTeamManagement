@@ -236,7 +236,10 @@ progress { width: 100%; }
 .list-value { font-size: 0.92rem; white-space: nowrap; }
 .list-chev { color: var(--muted); flex: none; }
 .profile-row { min-height: 64px; }
-.lang-row { flex-wrap: wrap; }
+.lang-row { flex-wrap: wrap; gap: 10px; }
+.lang-row .list-label { white-space: nowrap; }
+.lang-row .lang-seg { flex: 1 1 220px; }
+.btn.leave-team { background: transparent; color: var(--err); border-color: color-mix(in srgb, var(--err) 45%, transparent); font-weight: 600; }
 .lang-seg { flex: 1 1 220px; }
 .group-title { font-size: 0.9rem; font-weight: 600; color: var(--muted); margin: 10px 0 0 4px; text-transform: none; }
 .version-line { text-align: center; margin: 4px 0 0; }
