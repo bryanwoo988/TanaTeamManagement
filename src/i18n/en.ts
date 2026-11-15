@@ -64,4 +64,7 @@ export const en: Record<MessageKey, string> = {
   'login.f1': 'Know who does what, and when',
   'login.f2': 'Snap invoices and submit claims',
   'login.f3': 'Invite teammates and run the team together',
+  'profile.noPhone': 'Your account has no phone number. Sign out and sign in again.',
+  'auth.profileError': 'Could not load your profile. Check your connection and retry.',
+  'common.retry': 'Retry',
 };

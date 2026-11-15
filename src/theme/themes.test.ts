@@ -10,6 +10,9 @@ describe('themes', () => {
       expect(contrast(th.fg, th.card), m('fg', 'card')).toBeGreaterThanOrEqual(4.5);
       expect(contrast(th.muted, th.card), m('muted', 'card')).toBeGreaterThanOrEqual(4.5);
       expect(contrast(th.accentFg, th.accent), m('accentFg', 'accent')).toBeGreaterThanOrEqual(4.5);
+      for (const k of ['ok', 'warn', 'err'] as const) {
+        expect(contrast(th.fg, th[`${k}Soft`]), m('fg', `${k}Soft`)).toBeGreaterThanOrEqual(4.5);
+      }
       expect(new Set(th.team).size).toBe(6);
       for (const c of th.team) expect(contrast(c, th.card), m(c, 'card')).toBeGreaterThanOrEqual(3);
     }

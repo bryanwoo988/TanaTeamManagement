@@ -64,4 +64,7 @@ export const ms: Record<MessageKey, string> = {
   'login.f1': 'Tahu siapa buat apa dan bila',
   'login.f2': 'Ambil gambar invois dan hantar tuntutan',
   'login.f3': 'Jemput rakan pasukan dan urus bersama',
+  'profile.noPhone': 'Akaun anda tiada nombor telefon. Log keluar dan log masuk semula.',
+  'auth.profileError': 'Profil tidak dapat dimuat. Semak sambungan dan cuba lagi.',
+  'common.retry': 'Cuba lagi',
 };

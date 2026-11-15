@@ -55,6 +55,7 @@ export function applyAppearance(prefersDark: boolean): void {
   const vars: Record<string, string> = {
     bg: th.bg, card: th.card, fg: th.fg, muted: th.muted, line: th.line, soft: th.soft,
     accent: th.accent, 'accent-fg': th.accentFg, 'accent-soft': th.accentSoft,
+    ok: th.ok, 'ok-soft': th.okSoft, warn: th.warn, 'warn-soft': th.warnSoft, err: th.err, 'err-soft': th.errSoft,
   };
   for (const [k, v] of Object.entries(vars)) s.setProperty(`--${k}`, v);
   th.team.forEach((c, i) => s.setProperty(`--team-${i + 1}`, c));

@@ -3,6 +3,7 @@ import { act, render, screen } from '@testing-library/react';
 
 let authCb: (u: unknown) => void = () => {};
 let snapCb: (s: unknown) => void = () => {};
+let snapErr: () => void = () => {};
 vi.mock('../firebase', () => ({ auth: {}, db: {} }));
 vi.mock('firebase/auth', () => ({
   onAuthStateChanged: (_a: unknown, cb: (u: unknown) => void) => { authCb = cb; return () => {}; },
@@ -10,14 +11,14 @@ vi.mock('firebase/auth', () => ({
 }));
 vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, ...p: string[]) => ({ path: p.join('/') }),
-  onSnapshot: (_ref: unknown, cb: (s: unknown) => void) => { snapCb = cb; return () => {}; },
+  onSnapshot: (_ref: unknown, cb: (s: unknown) => void, err?: () => void) => { snapCb = cb; snapErr = err ?? (() => {}); return () => {}; },
 }));
 
 import { AuthProvider, useAuth } from './AuthProvider';
 
 function Probe() {
-  const { user, profile, loading } = useAuth();
-  return <p data-testid="s">{`${loading ? 'loading' : 'ready'}|${user?.uid ?? '-'}|${profile?.name ?? '-'}`}</p>;
+  const { user, profile, loading, error } = useAuth();
+  return <p data-testid="s">{`${loading ? 'loading' : 'ready'}|${user?.uid ?? '-'}|${profile?.name ?? '-'}${error ? '|error' : ''}`}</p>;
 }
 const state = () => screen.getByTestId('s').textContent;
 
@@ -44,5 +45,12 @@ describe('AuthProvider', () => {
     act(() => authCb({ uid: 'u1' }));
     act(() => snapCb({ exists: () => true, data: () => ({ name: 'Ali' }) }));
     expect(state()).toBe('ready|u1|Ali');
+  });
+
+  it('a profile read error is an error state, not a missing profile', () => {
+    render(<AuthProvider><Probe /></AuthProvider>);
+    act(() => authCb({ uid: 'u1' }));
+    act(() => snapErr());
+    expect(state()).toBe('ready|u1|-|error');
   });
 });

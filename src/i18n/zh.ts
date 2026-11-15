@@ -62,6 +62,9 @@ export const zh = {
   'login.f1': '日程一目了然，谁做什么都清楚',
   'login.f2': '拍照上传发票，轻松报销',
   'login.f3': '邀请队友，一起管理团队',
+  'profile.noPhone': '你的账号没有手机号码，请退出后重新登录。',
+  'auth.profileError': '无法加载你的资料，请检查网络后重试。',
+  'common.retry': '重试',
 } as const;
 
 export type MessageKey = keyof typeof zh;
