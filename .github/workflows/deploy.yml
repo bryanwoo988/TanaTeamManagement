@@ -82,3 +82,17 @@ jobs:
 
       - name: Deploy to Firebase
         run: npx firebase deploy --project tana-team --non-interactive --force
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # Callable functions must be invokable by the app. Firebase sets this only when a function is
+      # first created, so a create whose invoker step failed stays locked forever. Re-assert it.
+      - name: Ensure callable functions are public
+        run: |
+          for fn in requestlogincode verifylogincode requestphonechangecode confirmphonechange \
+                    createteam jointeam getinvitecode resetinvitecode addmemberbyphone cancelphoneinvite leaveteam \
+                    getpushconfig sendtestpush; do
+            gcloud run services add-iam-policy-binding "$fn" --project tana-team --region asia-southeast1 \
+              --member=allUsers --role=roles/run.invoker --quiet > /dev/null
+            echo "public: $fn"
+          done
