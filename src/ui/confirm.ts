@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-export interface ConfirmOptions { title: string; body?: string; confirmLabel?: string; danger?: boolean }
+export interface ConfirmOptions { title: string; body?: string; items?: string[]; confirmLabel?: string; danger?: boolean }
 interface Pending extends ConfirmOptions { resolve: (ok: boolean) => void }
 
 let pending: Pending | null = null;

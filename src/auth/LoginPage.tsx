@@ -8,28 +8,9 @@ import InlineLangSwitch from '../i18n/InlineLangSwitch';
 import { normalizeMyPhone } from '../../shared/phone';
 import { authErrorKey, detailFor } from './authErrors';
 import Logo from '../ui/Logo';
+import PhoneInput, { serverPhone } from '../ui/PhoneInput';
 
 const RESEND_SECONDS = 60;
-
-/** Accept the number with or without its leading 0 (the +60 is shown in front of the field). */
-function serverPhone(input: string): string | null {
-  if (normalizeMyPhone(input).ok) return input.trim();
-  const withZero = '0' + input.replace(/\D/g, '');
-  return normalizeMyPhone(withZero).ok ? withZero : null;
-}
-
-/** Local digits as typed or pasted (+60…, 0…, spaces) → "12-345 6789" / "11-2345 6789", capped. */
-export function formatLocalPhone(input: string): string {
-  let d = input.replace(/\D/g, '');
-  if (d.startsWith('60')) d = d.slice(2);
-  if (d.startsWith('0')) d = d.slice(1);
-  d = d.slice(0, d.startsWith('11') ? 10 : 9);
-  if (d.length <= 2) return d;
-  const a = d.slice(0, 2);
-  const rest = d.slice(2);
-  const cut = d.startsWith('11') ? 4 : 3;
-  return rest.length <= cut ? `${a}-${rest}` : `${a}-${rest.slice(0, cut)} ${rest.slice(cut)}`;
-}
 
 /** +60123456789 → "+60 12-345 6789"; +601123456789 → "+60 11-2345 6789". */
 export function formatMyPhone(e164: string): string {
@@ -121,11 +102,7 @@ export default function LoginPage() {
         {!sentTo ? (
           <form onSubmit={sendCode} noValidate>
             <label htmlFor="phone" className="sr-only">{t('login.phone')}</label>
-            <div className="phone-field">
-              <span className="phone-cc" aria-label={t('login.country')}><span aria-hidden>🇲🇾</span> +60</span>
-              <input id="phone" type="tel" inputMode="tel" autoComplete="tel-national" placeholder={t('login.phonePlaceholder')}
-                value={phone} onChange={(e) => setPhone(formatLocalPhone(e.target.value))} />
-            </div>
+            <PhoneInput id="phone" value={phone} onChange={setPhone} />
             <p className="muted small">{t('login.phoneHint')}</p>
             {errorBox}
             <button type="submit" className="btn primary block" disabled={busy || phone.replace(/\D/g, '').length < 8}>

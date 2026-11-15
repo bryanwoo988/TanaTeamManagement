@@ -8,11 +8,13 @@ import { authErrorKey } from '../auth/authErrors';
 import { t, useT, type MessageKey } from '../i18n';
 import AsyncButton from '../ui/AsyncButton';
 import { confirmSheet } from '../ui/confirm';
+import PhoneInput, { serverPhone } from '../ui/PhoneInput';
 import { toast, toastError } from '../ui/toast';
 import { normalizeMyPhone } from '../../shared/phone';
 import { isActive } from '../../shared/access';
 import type { MemberDoc, PhoneInviteDoc, Role } from '../../shared/types';
 import { useTeams } from './TeamContext';
+import { ROLE_PERMISSIONS } from './rolePermissions';
 
 const ROLES: Role[] = ['admin', 'finance', 'member'];
 
@@ -56,11 +58,22 @@ export default function MembersPage() {
     if (ok) await guard(() => deleteDoc(ref(m.id)));
   }
 
+  async function changeRole(m: MemberDoc & { id: string }, next: Role) {
+    if (next === m.role) return;
+    const ok = await confirmSheet({
+      title: t('team.changeRoleTitle', { name: m.name, from: t(`team.role.${m.role}`), to: t(`team.role.${next}`) }),
+      items: ROLE_PERMISSIONS[next].map((k) => t(k)),
+      confirmLabel: t('team.changeRole'),
+    });
+    if (ok) await guard(() => updateDoc(ref(m.id), { role: next }));
+  }
+
   async function add() {
     setErr(null);
-    const p = normalizeMyPhone(phone);
+    const sp = serverPhone(phone);
+    const p = sp ? normalizeMyPhone(sp) : null;
     // Throw on invalid input so the button does not flash "Done".
-    if (!p.ok) { setErr('login.invalidPhone'); throw new Error('invalid phone'); }
+    if (!p?.ok) { setErr('login.invalidPhone'); throw new Error('invalid phone'); }
     if (!name.trim()) { setErr('team.badName'); throw new Error('missing name'); }
     try {
       const r = await addMemberByPhone(teamId, p.e164, name.trim(), role);
@@ -118,7 +131,7 @@ export default function MembersPage() {
                 <span>{m.name}{isMe && <span className="muted"> {t('team.you')}</span>}</span>
                 {admin && !isMe ? (
                   <>
-                    <select aria-label={t('team.role')} value={m.role} onChange={(e) => guard(() => updateDoc(ref(m.id), { role: e.target.value }))}>
+                    <select aria-label={t('team.role')} value={m.role} onChange={(e) => changeRole(m, e.target.value as Role)}>
                       {ROLES.map((r) => <option key={r} value={r}>{t(`team.role.${r}`)}</option>)}
                     </select>
                     {m.role === 'member' ? (
@@ -158,7 +171,7 @@ export default function MembersPage() {
           <h2>{t('team.addByPhone')}</h2>
           {err && <p className="err" role="alert">{t(err)}</p>}
           <label htmlFor="add-phone">{t('team.phone')}</label>
-          <input id="add-phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <PhoneInput id="add-phone" value={phone} onChange={setPhone} />
           <label htmlFor="add-name">{t('team.memberName')}</label>
           <input id="add-name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
           <label htmlFor="add-role">{t('team.role')}</label>

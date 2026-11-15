@@ -97,10 +97,25 @@ describe('MembersPage', () => {
     expect(deleteDoc).not.toHaveBeenCalled();
   });
 
-  it('admin: changes role with the select', async () => {
+  it('admin: choosing a role confirms with the new role permissions, then writes', async () => {
     setup();
     await userEvent.selectOptions(within(row('Bob')).getByRole('combobox'), 'finance');
+    expect(confirmSheet).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Change Bob's role from Member to Finance?",
+      confirmLabel: 'Change role',
+      items: expect.arrayContaining(['Approve or reject claims; export invoices']),
+    }));
     expect(updateDoc).toHaveBeenCalledWith({ path: 'teams/t1/members/bob' }, { role: 'finance' });
+  });
+
+  it('admin: cancelling the role confirm writes nothing and the select reverts', async () => {
+    confirmSheet.mockResolvedValue(false);
+    setup();
+    const sel = within(row('Bob')).getByRole('combobox') as HTMLSelectElement;
+    await userEvent.selectOptions(sel, 'finance');
+    expect(confirmSheet).toHaveBeenCalled();
+    expect(updateDoc).not.toHaveBeenCalled();
+    expect(sel.value).toBe('member');
   });
 
   it('own row has no role select or remove', () => {
@@ -145,6 +160,26 @@ describe('MembersPage', () => {
   it('add by phone sends the E.164 number', async () => {
     setup();
     await userEvent.type(screen.getByLabelText('Mobile number'), '012-345 6789');
+    await userEvent.type(screen.getByLabelText('Name'), 'Eve');
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(addMemberByPhone).toHaveBeenCalledWith('t1', '+60123456789', 'Eve', 'member');
+  });
+
+  it('add-by-phone field has the +60 prefix and formats like login', async () => {
+    setup();
+    expect(screen.getByLabelText('Malaysia country code')).toHaveTextContent('+60');
+    const f = screen.getByLabelText('Mobile number') as HTMLInputElement;
+    await userEvent.type(f, '0123456789');
+    expect(f.value).toBe('12-345 6789');
+    await userEvent.clear(f);
+    await userEvent.click(f);
+    await userEvent.paste('+60123456789');
+    expect(f.value).toBe('12-345 6789');
+  });
+
+  it('add by phone sends +60 for a number typed without the leading 0', async () => {
+    setup();
+    await userEvent.type(screen.getByLabelText('Mobile number'), '123456789');
     await userEvent.type(screen.getByLabelText('Name'), 'Eve');
     await userEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(addMemberByPhone).toHaveBeenCalledWith('t1', '+60123456789', 'Eve', 'member');

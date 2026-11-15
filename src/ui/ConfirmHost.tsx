@@ -18,6 +18,7 @@ export default function ConfirmHost() {
         <div className="sheet-handle" aria-hidden />
         <h2 className="sheet-title">{p.title}</h2>
         {p.body && <p className="muted">{p.body}</p>}
+        {p.items && <ul className="muted">{p.items.map((i) => <li key={i}>{i}</li>)}</ul>}
         <div className="stack">
           <button className={'btn block ' + (p.danger ? 'danger' : 'primary')} onClick={() => answer(true)}>{p.confirmLabel ?? t('confirm')}</button>
           <button className="btn block" onClick={() => answer(false)}>{t('cancel')}</button>
