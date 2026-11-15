@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -40,6 +40,16 @@ describe('InvoiceDetail', () => {
     setup(inv());
     expect(screen.getByText('RM 12.50')).toBeInTheDocument();
     expect(await screen.findByRole('img')).toHaveAttribute('src', 'https://img/p.jpg');
+  });
+
+  it('tapping the photo opens it full screen; tapping again closes it', async () => {
+    setup(inv());
+    await screen.findByRole('img');
+    fireEvent.click(screen.getByRole('button', { name: 'Photo' }));
+    const viewer = screen.getByRole('dialog');
+    expect(viewer.querySelector('img')).toHaveAttribute('src', 'https://img/p.jpg');
+    fireEvent.click(viewer);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('waits for a pending write before fetching the photo, then fetches', async () => {

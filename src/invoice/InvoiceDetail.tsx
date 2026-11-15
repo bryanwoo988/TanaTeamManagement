@@ -10,6 +10,7 @@ import AsyncButton from '../ui/AsyncButton';
 import { confirmSheet } from '../ui/confirm';
 import { toast, toastError } from '../ui/toast';
 import InvoiceEditor from './InvoiceEditor';
+import PhotoViewer from '../ui/PhotoViewer';
 import { deleteInvoice, getLinkedEvent, photoUrl, resubmitClaim, setClaimStatus, watchInvoice, type InvoiceRow } from './data';
 import { useTeamInfo } from './useTeamInfo';
 
@@ -26,6 +27,7 @@ export default function InvoiceDetail() {
   const [pending, setPending] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [viewing, setViewing] = useState(false);
   const [paidDate, setPaidDate] = useState(() => klDate(new Date()));
   const [reason, setReason] = useState('');
   const [err, setErr] = useState<string | null>(null);
@@ -93,7 +95,12 @@ export default function InvoiceDetail() {
             <p>{t('inv.relatedPeople')}: {inv.relatedUids.map((u) => names.get(u) ?? u).join(', ')}</p>
           )}
           {work && work.id === inv.eventId && <p>{`${t('inv.linkedWork')}: ${work.title} · ${work.date}`}</p>}
-          {url && <img className="photo-full" src={url} alt={t('inv.photo')} />}
+          {url && (
+            <button type="button" className="photo-button" aria-label={t('inv.photo')} onClick={() => setViewing(true)}>
+              <img className="photo-full" src={url} alt={t('inv.photo')} />
+            </button>
+          )}
+          {viewing && url && <PhotoViewer src={url} alt={t('inv.photo')} onClose={() => setViewing(false)} />}
         </section>
 
         {finance && claim && inv.status === 'pending' && (

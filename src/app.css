@@ -211,6 +211,11 @@ body:has(.sheet-backdrop) { overflow: hidden; }
 .pill { display: inline-block; padding: 1px 10px; border-radius: 99px; background: var(--soft); font-size: 0.85rem; font-weight: 600; }
 .pill.reimbursed { background: var(--accent-soft); color: var(--accent); }
 .pill.rejected { color: #b3261e; }
+.photo-button { display: block; padding: 0; border: 0; background: none; cursor: zoom-in; border-radius: var(--radius); }
+.photo-viewer { position: fixed; inset: 0; z-index: 120; background: rgba(0, 0, 0, 0.92); display: grid; place-items: center; padding: calc(12px + env(safe-area-inset-top, 0px)) 12px calc(12px + env(safe-area-inset-bottom, 0px)); animation: fade-in 0.15s ease; }
+.photo-viewer img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
+.photo-viewer-close { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: 10px; width: 44px; height: 44px; border-radius: 99px; border: 0; background: rgba(255, 255, 255, 0.16); color: #fff; display: grid; place-items: center; }
+body:has(.photo-viewer) { overflow: hidden; }
 .photo-preview, .photo-full { display: block; max-width: 100%; max-height: 320px; border-radius: var(--radius); object-fit: contain; }
 progress { width: 100%; }
 
