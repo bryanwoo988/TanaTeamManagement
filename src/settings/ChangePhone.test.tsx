@@ -29,6 +29,14 @@ describe('ChangePhone', () => {
     expect(requestPhoneChangeCode).not.toHaveBeenCalled();
   });
 
+  it('uses the +60 field and formats as you type', async () => {
+    render(<ChangePhone current="+60123456789" />);
+    expect(screen.getByLabelText('Malaysia country code')).toHaveTextContent('+60');
+    const f = screen.getByLabelText('New mobile number') as HTMLInputElement;
+    await userEvent.type(f, '0133334444');
+    expect(f.value).toBe('13-333 4444');
+  });
+
   it('sends a code then confirms and shows the new number from the profile', async () => {
     requestPhoneChangeCode.mockResolvedValue({ sent: true });
     confirmPhoneChange.mockResolvedValue({ phone: '+60133334444' });

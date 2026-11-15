@@ -6,6 +6,7 @@ import { toast } from '../ui/toast';
 import { normalizeMyPhone } from '../../shared/phone';
 import { authErrorKey, detailFor } from '../auth/authErrors';
 import { formatMyPhone } from '../auth/LoginPage';
+import PhoneInput, { serverPhone } from '../ui/PhoneInput';
 
 /**
  * Change the signed-in user's phone in two steps: a code is texted to the new number, then the
@@ -31,8 +32,9 @@ export default function ChangePhone({ current }: { current?: string }) {
     e.preventDefault();
     setError(null);
     setDetail(null);
-    const p = normalizeMyPhone(phone);
-    if (!p.ok) return setError('login.invalidPhone');
+    const sp = serverPhone(phone);
+    const p = sp ? normalizeMyPhone(sp) : null;
+    if (!p?.ok) return setError('login.invalidPhone');
     if (p.e164 === current) return setError('phone.same');
     setBusy(true);
     try {
@@ -77,7 +79,7 @@ export default function ChangePhone({ current }: { current?: string }) {
       {!sentTo ? (
         <form onSubmit={send} noValidate className="stack">
           <label htmlFor="new-phone">{t('phone.new')}</label>
-          <input id="new-phone" type="tel" inputMode="tel" placeholder={t('login.phonePlaceholder')} value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <PhoneInput id="new-phone" value={phone} onChange={setPhone} />
           {errorBox}
           <button type="submit" className="btn block" disabled={busy}>{t('login.sendCode')}</button>
         </form>
