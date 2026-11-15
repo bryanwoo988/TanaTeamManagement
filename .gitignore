@@ -10,3 +10,5 @@ functions/.env
 e2e/screenshots/
 test-results/
 playwright-report/
+functions/.env.*
+!functions/.env.demo-tana
