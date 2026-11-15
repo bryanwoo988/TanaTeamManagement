@@ -11,6 +11,9 @@ import type { EventDoc, InvoiceDoc, Lang, MemberDoc } from '../../shared/types';
  */
 const PAGE_W = 210, PAGE_H = 297, MARGIN = 14, CONTENT_W = PAGE_W - MARGIN * 2;
 const LINE_H = 4.4, PAD = 1.6;
+/** A table row never grows past this many lines (it would not fit a page); longer text ends in an ellipsis. */
+const MAX_ROW_LINES = 36;
+const MAX_NOTE_LINES = 8;
 const PX_PER_MM = 8;
 const PT_MM = 25.4 / 72;
 const CANVAS_FONT = '"Noto Sans SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,sans-serif';
@@ -39,18 +42,26 @@ class Painter {
 
   private beginCanvas() {
     if (!this.canvasFactory) return;
-    this.canvas = this.canvasFactory();
-    this.canvas.width = PAGE_W * PX_PER_MM;
-    this.canvas.height = PAGE_H * PX_PER_MM;
-    this.ctx = this.canvas.getContext('2d')!;
-    this.ctx.fillStyle = '#ffffff';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    if (!this.canvas) {
+      this.canvas = this.canvasFactory();
+      this.canvas.width = PAGE_W * PX_PER_MM;
+      this.canvas.height = PAGE_H * PX_PER_MM;
+      this.ctx = this.canvas.getContext('2d')!;
+    }
+    this.ctx!.fillStyle = '#ffffff';
+    this.ctx!.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
   /** Put the finished canvas (and the photos waiting on this page) into the document. */
   private flush() {
     if (this.canvas) this.doc.addImage(this.canvas.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, PAGE_W, PAGE_H);
-    for (const im of this.pending) this.doc.addImage(im.dataUrl, /^data:image\/png/.test(im.dataUrl) ? 'PNG' : 'JPEG', im.x, im.y, im.w, im.h);
+    for (const im of this.pending) {
+      try {
+        this.doc.addImage(im.dataUrl, /^data:image\/png/.test(im.dataUrl) ? 'PNG' : 'JPEG', im.x, im.y, im.w, im.h);
+      } catch {
+        // an undrawable photo leaves its area empty; it never aborts the document
+      }
+    }
     this.pending = [];
   }
 
@@ -109,13 +120,23 @@ class Painter {
     this.beginCanvas();
   }
 
+  /** True when jsPDF can decode this image (so a later flush will not fail on it). */
+  canDraw(dataUrl: string): boolean {
+    try { this.doc.getImageProperties(dataUrl); return true; } catch { return false; }
+  }
+
   finish(): Blob {
     this.flush();
+    if (this.canvas) { this.canvas.width = 0; this.canvas.height = 0; this.canvas = null; this.ctx = null; }
     return this.doc.output('blob');
   }
 }
 
 /** Break text into lines no wider than `width`, at spaces when possible, otherwise between any two characters. */
+function cap(lines: string[], max: number): string[] {
+  return lines.length <= max ? lines : [...lines.slice(0, max - 1), `${lines[max - 1].replace(/.{1}$/u, '')}…`];
+}
+
 function wrap(p: Painter, text: string, width: number, size: number, bold = false): string[] {
   const out: string[] = [];
   for (const para of (text || '').split('\n')) {
@@ -148,7 +169,7 @@ class Flow {
     this.p.rule(this.y);
   }
   row(cells: string[], bold = false) {
-    const lines = cells.map((c, i) => wrap(this.p, c, this.cols[i].width - PAD * 2, 9, bold));
+    const lines = cells.map((c, i) => cap(wrap(this.p, c, this.cols[i].width - PAD * 2, 9, bold), MAX_ROW_LINES));
     const h = Math.max(...lines.map((l) => l.length)) * LINE_H + PAD * 2;
     if (this.y + h > PAGE_H - MARGIN) {
       this.p.newPage();
@@ -213,11 +234,9 @@ export async function buildInvoicePdf(invoices: (InvoiceDoc & { id: string })[],
   for (const r of rows) {
     p.newPage();
     let y = MARGIN + 5;
-    p.text(`${L.receipt}: ${r.vendor}`, MARGIN, y, { size: 13, bold: true });
-    y += 6;
-    for (const line of [`${r.date}  |  ${r.category}  |  ${r.amountText}`, `${L.uploader}: ${r.uploader}`, ...(r.notes ? [r.notes] : [])]) {
-      for (const l of wrap(p, line, CONTENT_W, 9)) { p.text(l, MARGIN, y, { tone: 'muted' }); y += LINE_H; }
-    }
+    for (const l of cap(wrap(p, `${L.receipt}: ${r.vendor}`, CONTENT_W, 13, true), 2)) { p.text(l, MARGIN, y, { size: 13, bold: true }); y += 6; }
+    const info = [...cap(wrap(p, `${r.date}  |  ${r.category}  |  ${r.amountText}`, CONTENT_W, 9), 2), ...cap(wrap(p, `${L.uploader}: ${r.uploader}`, CONTENT_W, 9), 2), ...(r.notes ? cap(wrap(p, r.notes, CONTENT_W, 9), MAX_NOTE_LINES) : [])];
+    for (const l of info) { p.text(l, MARGIN, y, { tone: 'muted' }); y += LINE_H; }
     y += 3;
     let drawn = false;
     const url = photoUrls[r.id];
@@ -225,6 +244,7 @@ export async function buildInvoicePdf(invoices: (InvoiceDoc & { id: string })[],
       try {
         const im = await load(url);
         const maxW = CONTENT_W, maxH = PAGE_H - MARGIN - y;
+        if (maxH < 20 || !(im.width > 0) || !(im.height > 0) || !p.canDraw(im.dataUrl)) throw new Error('photo cannot be placed');
         const k = Math.min(maxW / im.width, maxH / im.height);
         p.image(im.dataUrl, MARGIN, y, im.width * k, im.height * k);
         drawn = true;

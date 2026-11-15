@@ -46,7 +46,7 @@ describe('ExportPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Export' }));
     await waitFor(() => expect(shareOrDownload).toHaveBeenCalled());
     expect(fetchEvents.mock.calls[0][0]).toEqual({ teamId: 't1' });
-    expect(shareOrDownload.mock.calls[0][1]).toMatch(/^tana-Ladang-\d{4}-\d{2}-01_\d{4}-\d{2}-\d{2}\.xlsx$/);
+    expect(shareOrDownload.mock.calls[0][1]).toMatch(/^tana-Ladang-calendar-\d{4}-\d{2}-01_\d{4}-\d{2}-\d{2}\.xlsx$/);
   });
   it('finance exports invoices with the viewer scope all', async () => {
     role = 'finance';

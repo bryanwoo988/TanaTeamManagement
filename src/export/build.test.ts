@@ -22,7 +22,7 @@ describe('xlsx', () => {
     expect(ws.getRow(2).getCell(idx).value).toBe(10.1);
     const last = ws.getRow(ws.rowCount);
     expect(last.getCell(idx).value).toBe(10.35);
-    expect(String(last.getCell(1).value)).toBe('Total');
+    expect(String(last.getCell(1).value)).toBe('Total (excl. rejected)');
   });
   it('calendar sheet lists events with names', async () => {
     const ws = await sheet(await buildCalendarXlsx([ev], [{ uid: 'u1', name: 'Ann' }], 'zh'));
@@ -66,5 +66,35 @@ describe('pdf', () => {
     const blob = await buildInvoicePdf([inv('1', { vendor: '阿成' })], {}, 'zh', { canvasFactory });
     expect(drawn).toContain('阿成');
     expect(blob.size).toBeGreaterThan(300);
+  });
+  it('reuses one canvas for every page and releases it at the end', async () => {
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    const made: { width: number; height: number }[] = [];
+    const canvasFactory = () => {
+      const c = { width: 0, height: 0, getContext: () => ({ measureText: (s: string) => ({ width: s.length * 6 }), fillText() {}, fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, set font(_v: string) {}, set fillStyle(_v: string) {}, set strokeStyle(_v: string) {}, set lineWidth(_v: number) {}, set textAlign(_v: string) {}, set textBaseline(_v: string) {} }), toDataURL: () => png };
+      made.push(c);
+      return c as unknown as HTMLCanvasElement;
+    };
+    await buildInvoicePdf([inv('1', { vendor: '阿成' }), inv('2'), inv('3')], {}, 'zh', { canvasFactory });
+    expect(made).toHaveLength(1);
+    expect(made[0].width).toBe(0);
+  });
+  it('overlong notes and vendor do not abort the PDF and the receipt page is still produced', async () => {
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    const loadImage = vi.fn().mockResolvedValue({ dataUrl: png, width: 100, height: 100 });
+    const longNote = Array.from({ length: 400 }, (_, i) => `line${i}`).join('\n');
+    const blob = await buildInvoicePdf([inv('1', { notes: longNote, vendor: 'V'.repeat(300) })], { '1': 'u' }, 'en', { loadImage });
+    const s = await text(blob);
+    expect(s.match(/\/Type \/Page\b/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+  it('an undecodable photo becomes the unavailable page instead of aborting', async () => {
+    const loadImage = vi.fn().mockResolvedValue({ dataUrl: 'data:image/gif;base64,AAAA', width: 10, height: 10 });
+    const s = await text(await buildInvoicePdf([inv('1')], { '1': 'u' }, 'en', { loadImage }));
+    expect(s).toContain('(Photo unavailable)');
+  });
+  it('a long table spans pages and repeats the header', async () => {
+    const many = Array.from({ length: 120 }, (_, i) => inv(String(i).padStart(3, '0'), { date: `2026-11-${String((i % 28) + 1).padStart(2, '0')}` }));
+    const s = await text(await buildInvoicePdf(many, {}, 'en'));
+    expect(s.match(/\(Vendor\)/g)?.length).toBeGreaterThanOrEqual(2);
   });
 });

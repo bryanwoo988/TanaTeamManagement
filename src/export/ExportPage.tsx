@@ -40,14 +40,13 @@ export default function ExportPage() {
   const [status, setStatus] = useState<ClaimStatus | ''>('');
   const [busy, setBusy] = useState(false);
   const mode: What = what === 'invoices' && canInvoices ? 'invoices' : 'calendar';
-  const back = '/';
   const teamName = teamId ? teams.find((x) => x.teamId === teamId)?.name ?? '' : t('team.personal');
 
   async function run() {
     if (!uid || busy || !from || !to || from > to) return;
     setBusy(true);
     try {
-      const name = exportFilename(teamName || (teamId ?? 'personal'), from, to, format);
+      const name = exportFilename(teamName || (teamId ?? 'personal'), mode, from, to, format);
       let blob: Blob | null = null;
       if (mode === 'calendar') {
         const scope: Scope = teamId ? { teamId } : 'personal';
@@ -73,7 +72,8 @@ export default function ExportPage() {
       if (!blob) { toast({ kind: 'info', title: t('export.empty') }); return; }
       const result = await shareOrDownload(blob, name);
       if (result !== 'cancelled') toast({ kind: 'ok', title: t(result === 'shared' ? 'export.shared' : 'export.saved') });
-    } catch {
+    } catch (e) {
+      console.error('export failed', e);
       toast({ kind: 'err', title: t('export.failed') });
     } finally {
       setBusy(false);
@@ -82,7 +82,7 @@ export default function ExportPage() {
 
   return (
     <main className="stack">
-      <p><Link to={back}>{t('back')}</Link></p>
+      <p><Link to="/">{t('back')}</Link></p>
       <h1>{t('export.title')}</h1>
       <section className="card stack">
         {canInvoices && (

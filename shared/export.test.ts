@@ -34,15 +34,24 @@ describe('invoiceRows', () => {
     expect(invoiceRows([inv('1', {})], 'zh').rows[0].status).toBe('待处理');
     expect(invoiceRows([inv('1', { status: 'rejected' })], 'ms').rows[0].status).toBe(exportLabels('ms').status.rejected);
   });
+  it('excludes rejected claims from the total and says so in every language', () => {
+    const list = [inv('1', { amountSen: 1000 }), inv('2', { amountSen: 500, status: 'rejected' }), inv('3', { amountSen: 200, kind: 'company', status: undefined })];
+    const r = invoiceRows(list, 'en');
+    expect(r.rows).toHaveLength(3);
+    expect(r.totalSen).toBe(1200);
+    expect(exportLabels('en').inv.total).toBe('Total (excl. rejected)');
+    expect(exportLabels('zh').inv.total).toBe('合计（不含退回）');
+    expect(exportLabels('ms').inv.total).toBe('Jumlah (tidak termasuk ditolak)');
+  });
   it('sorts by date ascending', () => {
     expect(invoiceRows([inv('b', { date: '2026-11-12' }), inv('a', { date: '2026-11-01' })], 'en').rows.map((r) => r.date)).toEqual(['2026-11-01', '2026-11-12']);
   });
 });
 
 describe('exportFilename / needsCanvas', () => {
-  it('follows tana-<team>-<from>_<to>.<ext>', () => {
-    expect(exportFilename('Ladang Tana', '2026-11-01', '2026-11-30', 'xlsx')).toBe('tana-Ladang-Tana-2026-11-01_2026-11-30.xlsx');
-    expect(exportFilename('a/b:c', '2026-11-01', '2026-11-30', 'pdf')).toBe('tana-a-b-c-2026-11-01_2026-11-30.pdf');
+  it('follows tana-<team>-<kind>-<from>_<to>.<ext>', () => {
+    expect(exportFilename('Ladang Tana', 'calendar', '2026-11-01', '2026-11-30', 'xlsx')).toBe('tana-Ladang-Tana-calendar-2026-11-01_2026-11-30.xlsx');
+    expect(exportFilename('a/b:c', 'invoices', '2026-11-01', '2026-11-30', 'pdf')).toBe('tana-a-b-c-invoices-2026-11-01_2026-11-30.pdf');
   });
   it('needs canvas for CJK or any non-Latin-1 text only', () => {
     expect(needsCanvas(['Ladang', 'Fuel'])).toBe(false);

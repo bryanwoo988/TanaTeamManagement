@@ -14,21 +14,21 @@ const LABELS: Record<Lang, ExportLabels> = {
   en: {
     allDay: 'All day',
     cal: { title: 'Calendar', date: 'Date', time: 'Time', event: 'Event', assignees: 'Assigned to', place: 'Place', notes: 'Notes' },
-    inv: { title: 'Invoices', date: 'Date', kind: 'Type', vendor: 'Vendor', category: 'Category', uploader: 'Uploaded by', status: 'Status', paidDate: 'Paid on', notes: 'Notes', amount: 'Amount (RM)', total: 'Total', receipt: 'Receipt', photoUnavailable: 'Photo unavailable' },
+    inv: { title: 'Invoices', date: 'Date', kind: 'Type', vendor: 'Vendor', category: 'Category', uploader: 'Uploaded by', status: 'Status', paidDate: 'Paid on', notes: 'Notes', amount: 'Amount (RM)', total: 'Total (excl. rejected)', receipt: 'Receipt', photoUnavailable: 'Photo unavailable' },
     kind: { claim: 'Staff claim', company: 'Company invoice' },
     status: { pending: 'Pending', reimbursed: 'Reimbursed', rejected: 'Rejected' },
   },
   zh: {
     allDay: '全天',
     cal: { title: '日历', date: '日期', time: '时间', event: '事项', assignees: '负责人', place: '地点', notes: '备注' },
-    inv: { title: '发票与报销', date: '日期', kind: '类型', vendor: '商家', category: '类别', uploader: '上传者', status: '状态', paidDate: '付款日期', notes: '备注', amount: '金额 (RM)', total: '合计', receipt: '单据', photoUnavailable: '照片无法显示' },
+    inv: { title: '发票与报销', date: '日期', kind: '类型', vendor: '商家', category: '类别', uploader: '上传者', status: '状态', paidDate: '付款日期', notes: '备注', amount: '金额 (RM)', total: '合计（不含退回）', receipt: '单据', photoUnavailable: '照片无法显示' },
     kind: { claim: '员工报销', company: '公司发票' },
     status: { pending: '待处理', reimbursed: '已报销', rejected: '已拒绝' },
   },
   ms: {
     allDay: 'Sepanjang hari',
     cal: { title: 'Kalendar', date: 'Tarikh', time: 'Masa', event: 'Acara', assignees: 'Ditugaskan kepada', place: 'Tempat', notes: 'Nota' },
-    inv: { title: 'Invois', date: 'Tarikh', kind: 'Jenis', vendor: 'Pembekal', category: 'Kategori', uploader: 'Dimuat naik oleh', status: 'Status', paidDate: 'Tarikh bayar', notes: 'Nota', amount: 'Jumlah (RM)', total: 'Jumlah keseluruhan', receipt: 'Resit', photoUnavailable: 'Foto tiada' },
+    inv: { title: 'Invois', date: 'Tarikh', kind: 'Jenis', vendor: 'Pembekal', category: 'Kategori', uploader: 'Dimuat naik oleh', status: 'Status', paidDate: 'Tarikh bayar', notes: 'Nota', amount: 'Jumlah (RM)', total: 'Jumlah (tidak termasuk ditolak)', receipt: 'Resit', photoUnavailable: 'Foto tiada' },
     kind: { claim: 'Tuntutan staf', company: 'Invois syarikat' },
     status: { pending: 'Menunggu', reimbursed: 'Dibayar balik', rejected: 'Ditolak' },
   },
@@ -61,7 +61,7 @@ export function calendarRows(events: (EventDoc & { id?: string })[], members: Pi
     }));
 }
 
-/** Invoices as table rows (oldest first, as a ledger reads) and the exact total in sen. */
+/** Invoices as table rows (oldest first, as a ledger reads) and the exact total in sen, excluding rejected claims. */
 export function invoiceRows(invoices: (InvoiceDoc & { id: string })[], lang: Lang): { rows: InvoiceExportRow[]; totalSen: number } {
   const L = exportLabels(lang);
   const sorted = [...invoices].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
@@ -70,13 +70,14 @@ export function invoiceRows(invoices: (InvoiceDoc & { id: string })[], lang: Lan
     status: i.kind === 'claim' && i.status ? L.status[i.status] : '', paidDate: i.paidDate ?? '', notes: i.notes ?? '',
     amountSen: i.amountSen, amountText: formatRM(i.amountSen),
   }));
-  return { rows, totalSen: rows.reduce((s, r) => s + r.amountSen, 0) };
+  const countedSen = sorted.filter((i) => !(i.kind === 'claim' && i.status === 'rejected')).reduce((s, i) => s + i.amountSen, 0);
+  return { rows, totalSen: countedSen };
 }
 
-/** tana-<team>-<from>_<to>.<ext>; characters unsafe in file names become "-". */
-export function exportFilename(team: string, from: string, to: string, ext: 'xlsx' | 'pdf'): string {
+/** tana-<team>-<calendar|invoices>-<from>_<to>.<ext>; characters unsafe in file names become "-". */
+export function exportFilename(team: string, kind: 'calendar' | 'invoices', from: string, to: string, ext: 'xlsx' | 'pdf'): string {
   const slug = team.trim().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'team';
-  return `tana-${slug}-${from}_${to}.${ext}`;
+  return `tana-${slug}-${kind}-${from}_${to}.${ext}`;
 }
 
 /** Helvetica (WinAnsi) cannot draw anything beyond Latin-1; such text must be rendered as an image. */
