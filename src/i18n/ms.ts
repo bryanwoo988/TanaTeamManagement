@@ -60,6 +60,7 @@ export const ms: Record<MessageKey, string> = {
   'team.badTeam': 'Pasukan tidak ditemui.',
   'team.codeCollision': 'Kod jemputan bertindih. Sila cuba lagi.',
   'team.lastAdmin': 'Anda pentadbir terakhir. Lantik pentadbir lain dahulu.',
+  'team.badName': 'Masukkan nama yang sah.',
   'team.noCode': 'Belum ada kod jemputan.',
   'login.f1': 'Tahu siapa buat apa dan bila',
   'login.f2': 'Ambil gambar invois dan hantar tuntutan',

@@ -60,6 +60,7 @@ export const en: Record<MessageKey, string> = {
   'team.badTeam': 'Team not found.',
   'team.codeCollision': 'Invite code clash. Please try again.',
   'team.lastAdmin': 'You are the last admin. Make someone else an admin first.',
+  'team.badName': 'Enter a valid name.',
   'team.noCode': 'There is no invite code yet.',
   'login.f1': 'Know who does what, and when',
   'login.f2': 'Snap invoices and submit claims',

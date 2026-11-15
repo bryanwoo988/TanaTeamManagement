@@ -106,6 +106,15 @@ describe('MembersPage', () => {
     expect(addMemberByPhone).not.toHaveBeenCalled();
   });
 
+  it('add by phone with an empty name says so before calling', async () => {
+    setup();
+    await userEvent.type(screen.getByLabelText('Mobile number'), '012-345 6789');
+    await userEvent.type(screen.getByLabelText('Name'), '   ');
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Enter a valid name');
+    expect(addMemberByPhone).not.toHaveBeenCalled();
+  });
+
   it('add by phone sends the E.164 number', async () => {
     setup();
     await userEvent.type(screen.getByLabelText('Mobile number'), '012-345 6789');

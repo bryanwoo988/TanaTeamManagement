@@ -58,6 +58,7 @@ export const zh = {
   'team.badTeam': '找不到这个团队。',
   'team.codeCollision': '邀请码冲突，请再试一次。',
   'team.lastAdmin': '你是最后一位管理员，请先指定其他管理员。',
+  'team.badName': '请输入有效的名字。',
   'team.noCode': '还没有邀请码。',
   'login.f1': '日程一目了然，谁做什么都清楚',
   'login.f2': '拍照上传发票，轻松报销',

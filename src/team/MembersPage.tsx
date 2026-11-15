@@ -61,7 +61,7 @@ export default function MembersPage() {
     const p = normalizeMyPhone(phone);
     // Throw on invalid input so the button does not flash "Done".
     if (!p.ok) { setErr('login.invalidPhone'); throw new Error('invalid phone'); }
-    if (!name.trim()) throw new Error('missing name');
+    if (!name.trim()) { setErr('team.badName'); throw new Error('missing name'); }
     try {
       const r = await addMemberByPhone(teamId, p.e164, name.trim(), role);
       toast({ kind: 'ok', title: t(r.status === 'added' ? 'team.added' : 'team.invited') });
