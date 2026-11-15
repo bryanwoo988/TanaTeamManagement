@@ -1,5 +1,6 @@
 const MAX_EDGE = 1600;
 const GOOD_ENOUGH = 500 * 1024;
+const MAX_UPLOAD = 2 * 1024 * 1024; // storage rule limit
 const QUALITIES = [0.8, 0.7, 0.6];
 
 const unreadable = () => new Error('photo.unreadable');
@@ -13,7 +14,7 @@ function encode(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
 /**
  * Shrink a camera/album photo for upload: long edge at most 1600 px, JPEG, EXIF rotation applied.
  * Starts at quality 0.8 and only retries lower (0.7, 0.6) while the result is over 500 KB; returns the smallest.
- * Throws Error('photo.unreadable') when the browser cannot decode the file (e.g. HEIC on an old browser).
+ * Throws Error('photo.tooLarge' ) when even the smallest result is 2 MB or more (storage would refuse it), and Error('photo.unreadable') when the browser cannot decode the file (e.g. HEIC on an old browser).
  */
 export async function compressImage(file: File): Promise<Blob> {
   let bitmap: ImageBitmap;
@@ -38,6 +39,7 @@ export async function compressImage(file: File): Promise<Blob> {
       if (!best || out.size < best.size) best = out;
       if (out.size <= GOOD_ENOUGH) break;
     }
+    if (best!.size >= MAX_UPLOAD) throw new Error('photo.tooLarge');
     return best!;
   } finally {
     bitmap.close?.();

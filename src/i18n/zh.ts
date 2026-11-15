@@ -208,6 +208,10 @@ export const zh = {
   'inv.categoryAdd': '新增类别',
   'inv.categoryRemove': '移除 {name}',
   'inv.adminOnly': '只有管理员可以管理类别。',
+  'photo.tooLarge': '这张照片太大了，请换一张或降低画质。',
+  'inv.dateRequired': '请选择日期。',
+  'inv.relatedMax': '最多只能选 {n} 人。',
+  'inv.loadError': '加载失败，请检查网络后重试。',
 } as const;
 
 export type MessageKey = keyof typeof zh;

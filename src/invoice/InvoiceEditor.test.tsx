@@ -40,7 +40,7 @@ describe('InvoiceEditor', () => {
     await userEvent.type(screen.getByLabelText('Amount (RM)'), '10');
     await pick('Choose from album');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-    expect(saveInvoice).toHaveBeenCalledWith('t1', null, expect.objectContaining({ kind: 'company', relatedUids: ['bob'] }), jpeg, expect.any(Function));
+    expect(saveInvoice).toHaveBeenCalledWith('t1', null, expect.objectContaining({ kind: 'company', relatedUids: ['bob'] }), jpeg, expect.any(Function), expect.any(Object));
   });
 
   it('blocks a non-numeric amount', async () => {
@@ -76,7 +76,7 @@ describe('InvoiceEditor', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(saveInvoice).toHaveBeenCalledWith('t1', null,
       { kind: 'claim', amountSen: 125050, date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), vendor: 'Ah Seng', category: 'Parts', notes: '', relatedUids: [], uploaderName: 'Me' },
-      jpeg, expect.any(Function));
+      jpeg, expect.any(Function), expect.any(Object));
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -101,6 +101,44 @@ describe('InvoiceEditor', () => {
     expect(screen.getByLabelText('Vendor')).toHaveValue('Shop');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(saveInvoice).toHaveBeenCalledTimes(2); // photo still attached, no re-pick needed
+  });
+
+  it('a retry after a failed save passes the same attempt state (no second upload)', async () => {
+    saveInvoice.mockRejectedValueOnce(new Error('net'));
+    render(<><InvoiceEditor {...base} canProcess={false} /><Toaster /></>);
+    await pick('Take photo');
+    await userEvent.type(screen.getByLabelText('Amount (RM)'), '9');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await screen.findByText('Something went wrong');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(saveInvoice.mock.calls[1][5]).toBe(saveInvoice.mock.calls[0][5]);
+  });
+
+  it('requires a date', async () => {
+    render(<InvoiceEditor {...base} canProcess={false} />);
+    await pick('Take photo');
+    await userEvent.type(screen.getByLabelText('Amount (RM)'), '9');
+    await userEvent.clear(screen.getByLabelText('Date'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('date');
+    expect(saveInvoice).not.toHaveBeenCalled();
+  });
+
+  it('caps related people at 20', async () => {
+    const many = Array.from({ length: 22 }, (_, i) => ({ uid: `u${i}`, name: `P${String(i).padStart(2, '0')}` }));
+    render(<InvoiceEditor {...base} members={many} canProcess />);
+    await userEvent.selectOptions(screen.getByLabelText('Type'), 'company');
+    for (const p of many) await userEvent.click(screen.getByRole('checkbox', { name: p.name }));
+    expect(screen.getByRole('alert')).toHaveTextContent('20');
+    expect(screen.getByRole('checkbox', { name: 'P21' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'P19' })).toBeChecked();
+  });
+
+  it('a too-large photo shows its own message', async () => {
+    compressImage.mockRejectedValue(new Error('photo.tooLarge'));
+    render(<InvoiceEditor {...base} canProcess={false} />);
+    await pick('Take photo');
+    expect(await screen.findByRole('alert')).toHaveTextContent('too large');
   });
 
   it('shows upload progress', async () => {
@@ -128,6 +166,6 @@ describe('InvoiceEditor', () => {
     expect(screen.queryByLabelText('Type')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Amount (RM)')).toHaveValue('12.50');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-    expect(saveInvoice).toHaveBeenCalledWith('t1', 'i1', expect.objectContaining({ amountSen: 1250 }), undefined, expect.any(Function));
+    expect(saveInvoice).toHaveBeenCalledWith('t1', 'i1', expect.objectContaining({ amountSen: 1250 }), undefined, expect.any(Function), expect.any(Object));
   });
 });

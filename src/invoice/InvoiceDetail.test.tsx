@@ -3,13 +3,14 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router';
 
-let feed: (r: unknown) => void = () => {};
+let feed: (r: unknown, pending?: boolean) => void = () => {};
+const photoUrl = vi.fn().mockResolvedValue('https://img/p.jpg');
 const setClaimStatus = vi.fn().mockResolvedValue(undefined);
 const resubmitClaim = vi.fn().mockResolvedValue(undefined);
 const deleteInvoice = vi.fn().mockResolvedValue(undefined);
 vi.mock('./data', () => ({
-  watchInvoice: (_t: string, _i: string, cb: (r: unknown) => void) => { feed = cb; return () => {}; },
-  photoUrl: vi.fn().mockResolvedValue('https://img/p.jpg'),
+  watchInvoice: (_t: string, _i: string, cb: (r: unknown, p?: boolean) => void) => { feed = cb; return () => {}; },
+  photoUrl: (...a: unknown[]) => photoUrl(...a),
   setClaimStatus: (...a: unknown[]) => setClaimStatus(...a),
   resubmitClaim: (...a: unknown[]) => resubmitClaim(...a),
   deleteInvoice: (...a: unknown[]) => deleteInvoice(...a),
@@ -37,6 +38,15 @@ describe('InvoiceDetail', () => {
     setup(inv());
     expect(screen.getByText('RM 12.50')).toBeInTheDocument();
     expect(await screen.findByRole('img')).toHaveAttribute('src', 'https://img/p.jpg');
+  });
+
+  it('waits for a pending write before fetching the photo, then fetches', async () => {
+    setup(inv());
+    photoUrl.mockClear();
+    act(() => feed(inv({ photoPath: 'teams/t1/invoices/i1/new.jpg' }), true));
+    expect(photoUrl).not.toHaveBeenCalled();
+    act(() => feed(inv({ photoPath: 'teams/t1/invoices/i1/new.jpg' }), false));
+    expect(photoUrl).toHaveBeenCalledWith('teams/t1/invoices/i1/new.jpg');
   });
 
   it('a missing or unreadable invoice shows not-found', () => {

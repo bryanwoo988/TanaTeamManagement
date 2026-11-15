@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router';
 
 let feed: (rows: unknown[]) => void = () => {};
-const listInvoices = vi.fn((_t: string, _f: unknown, _m: unknown, cb: (r: unknown[]) => void) => { feed = cb; return () => {}; });
+let fail: () => void = () => {};
+const listInvoices = vi.fn((_t: string, _f: unknown, _m: unknown, cb: (r: unknown[]) => void, onError?: () => void) => { feed = cb; fail = () => onError?.(); return () => {}; });
 vi.mock('./data', () => ({ listInvoices: (...a: unknown[]) => (listInvoices as (...x: unknown[]) => unknown)(...a) }));
 let role = 'member';
 vi.mock('../team/TeamContext', () => ({ useTeams: () => ({ member: () => ({ role, status: 'active' }) }) }));
@@ -46,14 +47,28 @@ describe('InvoicesPage', () => {
     expect(screen.getByRole('link', { name: 'Invoice categories' })).toHaveAttribute('href', '/team/t1/invoices/categories');
   });
 
-  it('filters by type, status and date re-subscribe with those filters', async () => {
+  it('subscribes once; filters by type, status and date narrow the shown rows', async () => {
     setup();
+    act(() => feed([row('a', { vendor: 'V-A' }), row('b', { kind: 'company', status: undefined, vendor: 'V-B', date: '2026-11-20' }), row('c', { status: 'rejected', vendor: 'V-C', date: '2026-10-01' })]));
     await userEvent.selectOptions(screen.getByLabelText('Type'), 'company');
-    expect(listInvoices.mock.lastCall![1]).toEqual({ kind: 'company' });
+    expect(screen.queryByText('V-A')).not.toBeInTheDocument();
+    expect(screen.getByText('V-B')).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Type'), '');
     await userEvent.selectOptions(screen.getByLabelText('Status'), 'rejected');
-    expect(listInvoices.mock.lastCall![1]).toEqual({ kind: 'company', status: 'rejected' });
+    expect(screen.getByText('V-C')).toBeInTheDocument();
+    expect(screen.queryByText('V-A')).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Status'), '');
     await userEvent.type(screen.getByLabelText('From'), '2026-11-01');
-    expect(listInvoices.mock.lastCall![1]).toEqual({ kind: 'company', status: 'rejected', from: '2026-11-01' });
+    expect(screen.queryByText('V-C')).not.toBeInTheDocument();
+    expect(screen.getByText('V-A')).toBeInTheDocument();
+    expect(listInvoices).toHaveBeenCalledTimes(1);
+  });
+
+  it('a listener error shows an error, not an empty list', () => {
+    setup();
+    act(() => fail());
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not load');
+    expect(screen.queryByText('Nothing here yet.')).not.toBeInTheDocument();
   });
 
   it('rows link to the detail page; New opens the editor', async () => {

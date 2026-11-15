@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useT } from '../i18n';
 import { klDate } from '../../shared/dates';
 import { parseRM } from '../../shared/money';
@@ -6,9 +6,10 @@ import type { InvoiceKind } from '../../shared/types';
 import AsyncButton from '../ui/AsyncButton';
 import { toast, toastError } from '../ui/toast';
 import { compressImage } from './compress';
-import { listEventsAround, photoUrl, saveInvoice, type InvoiceRow } from './data';
+import { listEventsAround, photoUrl, saveInvoice, type InvoiceRow, type SaveState } from './data';
 
 const MAX_SEN = 100_000_000;
+const MAX_RELATED = 20;
 
 /** Create or edit one invoice/claim in a bottom sheet. Form data is kept when saving fails. */
 export default function InvoiceEditor({ teamId, invoice, canProcess, members, categories, uploaderName, onClose }: {
@@ -36,6 +37,11 @@ export default function InvoiceEditor({ teamId, invoice, canProcess, members, ca
   const [reading, setReading] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // Invoice id and uploaded photo survive a failed save, so a retry never uploads the photo again.
+  const attempt = useRef<SaveState>({});
+  const blobUrl = useRef<string | null>(null);
+  const saving = progress !== null;
+  useEffect(() => () => { if (blobUrl.current) URL.revokeObjectURL?.(blobUrl.current); }, []);
 
   useEffect(() => {
     let live = true;
@@ -60,9 +66,11 @@ export default function InvoiceEditor({ teamId, invoice, canProcess, members, ca
     try {
       const out = await compressImage(file);
       setPhoto(out);
-      setPreview(typeof URL.createObjectURL === 'function' ? URL.createObjectURL(out) : null);
-    } catch {
-      setErr(t('photo.unreadable'));
+      if (blobUrl.current) URL.revokeObjectURL?.(blobUrl.current);
+      blobUrl.current = typeof URL.createObjectURL === 'function' ? URL.createObjectURL(out) : null;
+      setPreview(blobUrl.current);
+    } catch (e) {
+      setErr(t((e as Error).message === 'photo.tooLarge' ? 'photo.tooLarge' : 'photo.unreadable'));
     } finally {
       setReading(false);
     }
@@ -78,13 +86,14 @@ export default function InvoiceEditor({ teamId, invoice, canProcess, members, ca
     const sen = parseRM(amount);
     if (sen === null) fail(t('inv.amountInvalid'));
     if (sen > MAX_SEN) fail(t('inv.amountTooBig'));
+    if (!date) fail(t('inv.dateRequired'));
     if (!invoice && !photo) fail(t('inv.photoRequired'));
     try {
       setProgress(0);
       await saveInvoice(teamId, invoice?.id ?? null, {
         kind, amountSen: sen, date, vendor: vendor.trim(), category, notes: notes.trim(),
         relatedUids: kind === 'company' ? related : [], ...(eventId ? { eventId } : {}), uploaderName,
-      }, photo ?? undefined, (f) => setProgress(f));
+      }, photo ?? undefined, (f) => setProgress(f), attempt.current);
     } catch (e) {
       setProgress(null);
       if ((e as Error).message === 'offline') toast({ kind: 'err', title: t('ui.errorTitle'), body: t('inv.needNetwork') });
@@ -96,12 +105,18 @@ export default function InvoiceEditor({ teamId, invoice, canProcess, members, ca
     onClose();
   }
 
+  function toggleRelated(u: string) {
+    setErr(null);
+    if (!related.includes(u) && related.length >= MAX_RELATED) { setErr(t('inv.relatedMax', { n: MAX_RELATED })); return; }
+    setRelated((r) => (r.includes(u) ? r.filter((x) => x !== u) : [...r, u]));
+  }
+
   const cats = category && !categories.includes(category) ? [category, ...categories] : categories;
   const pct = Math.round((progress ?? 0) * 100);
   const title = invoice ? t('inv.edit') : t('inv.new');
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
+    <div className="sheet-backdrop" onClick={() => { if (!saving) onClose(); }}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" aria-hidden />
         <h2 className="sheet-title">{title}</h2>
@@ -137,7 +152,7 @@ export default function InvoiceEditor({ teamId, invoice, canProcess, members, ca
               <legend>{t('inv.relatedPeople')}</legend>
               {members.map((p) => (
                 <label key={p.uid} className="check">
-                  <input type="checkbox" checked={related.includes(p.uid)} onChange={() => setRelated((r) => (r.includes(p.uid) ? r.filter((x) => x !== p.uid) : [...r, p.uid]))} />{p.name}
+                  <input type="checkbox" checked={related.includes(p.uid)} onChange={() => toggleRelated(p.uid)} />{p.name}
                 </label>
               ))}
             </fieldset>
@@ -159,7 +174,7 @@ export default function InvoiceEditor({ teamId, invoice, canProcess, members, ca
             </div>
           )}
           <AsyncButton disabled={reading} onClick={save}>{t('save')}</AsyncButton>
-          <button type="button" className="btn block" onClick={onClose}>{t('common.close')}</button>
+          <button type="button" className="btn block" disabled={saving} onClick={onClose}>{t('common.close')}</button>
         </div>
       </div>
     </div>

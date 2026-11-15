@@ -9,6 +9,7 @@ import { useTeams } from '../team/TeamContext';
 import Bell from '../notify/Bell';
 import TeamSwitcher from '../team/TeamSwitcher';
 import InvoiceEditor from './InvoiceEditor';
+import { applyInvoiceFilters } from './filters';
 import { listInvoices, type InvoiceFilters, type InvoiceRow } from './data';
 import { useTeamInfo } from './useTeamInfo';
 
@@ -26,13 +27,17 @@ export default function InvoicesPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [rows, setRows] = useState<InvoiceRow[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const filters = useMemo<InvoiceFilters>(() => ({ ...(kind && { kind }), ...(status && { status }), ...(from && { from }), ...(to && { to }) }), [kind, status, from, to]);
+  // One live subscription per viewer; the filters only narrow what is shown.
   useEffect(() => {
     if (!uid) return;
-    return listInvoices(teamId, filters, { uid, all: finance }, setRows, () => setRows([]));
-  }, [teamId, filters, uid, finance]);
+    setFailed(false);
+    return listInvoices(teamId, {}, { uid, all: finance }, setRows, () => setFailed(true));
+  }, [teamId, uid, finance]);
+  const shown = useMemo(() => (rows ? applyInvoiceFilters(rows, filters) : null), [rows, filters]);
 
   return (
     <>
@@ -63,11 +68,12 @@ export default function InvoicesPage() {
           <label>{t('inv.to')}<input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
         </section>
 
-        {rows === null && <p className="muted">{t('loading')}</p>}
-        {rows?.length === 0 && <p className="muted">{t('inv.empty')}</p>}
-        {!!rows?.length && (
+        {failed && <p className="err" role="alert">{t('inv.loadError')}</p>}
+        {!failed && shown === null && <p className="muted">{t('loading')}</p>}
+        {!failed && shown?.length === 0 && <p className="muted">{t('inv.empty')}</p>}
+        {!failed && !!shown?.length && (
           <ul className="plain-list">
-            {rows.map((r) => (
+            {shown.map((r) => (
               <li key={r.id}>
                 <Link className="card inv-row" to={`/team/${teamId}/invoices/${r.id}`}>
                   <strong>{formatRM(r.amountSen)}</strong>

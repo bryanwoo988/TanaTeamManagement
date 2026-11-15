@@ -24,6 +24,13 @@ describe('CategoriesPage', () => {
     expect(saveCategories).toHaveBeenCalledWith('t1', ['Fuel', 'Parts', 'Seeds']);
   });
 
+  it('an empty draft saves nothing', async () => {
+    setup();
+    await userEvent.type(screen.getByLabelText('Add category'), '   ');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(saveCategories).not.toHaveBeenCalled();
+  });
+
   it('admin removes a category', async () => {
     setup();
     await userEvent.click(screen.getByRole('button', { name: 'Remove Fuel' }));

@@ -210,4 +210,8 @@ export const en: Record<MessageKey, string> = {
   'inv.categoryAdd': 'Add category',
   'inv.categoryRemove': 'Remove {name}',
   'inv.adminOnly': 'Only admins can manage categories.',
+  'photo.tooLarge': 'This photo is too large. Please use a smaller one.',
+  'inv.dateRequired': 'Please pick a date.',
+  'inv.relatedMax': 'You can tick at most {n} people.',
+  'inv.loadError': 'Could not load. Check your connection and retry.',
 };

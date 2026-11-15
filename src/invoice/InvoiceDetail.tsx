@@ -23,21 +23,22 @@ export default function InvoiceDetail() {
   const uid = user?.uid ?? '';
   const finance = canProcessClaims(member(teamId));
   const [inv, setInv] = useState<InvoiceRow | null | undefined>(undefined);
+  const [pending, setPending] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [paidDate, setPaidDate] = useState(() => klDate(new Date()));
   const [reason, setReason] = useState('');
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => watchInvoice(teamId, invoiceId, setInv), [teamId, invoiceId]);
+  useEffect(() => watchInvoice(teamId, invoiceId, (r, p) => { setInv(r); setPending(p); }), [teamId, invoiceId]);
   const photoPath = inv?.photoPath;
   useEffect(() => {
-    setUrl(null);
-    if (!photoPath) return;
+    // Storage only serves a photo once its invoice doc is on the server: wait out a pending write, then fetch.
+    if (!photoPath || pending) return;
     let live = true;
     photoUrl(photoPath).then((u) => live && setUrl(u)).catch(() => {});
     return () => { live = false; };
-  }, [photoPath]);
+  }, [photoPath, pending]);
 
   if (inv === undefined) return <main className="boot" aria-busy="true"><p className="muted">{t('loading')}</p></main>;
   if (inv === null) return <main className="stack"><p><Link to={`/team/${teamId}/invoices`}>{t('back')}</Link></p><p className="muted">{t('inv.notFound')}</p></main>;

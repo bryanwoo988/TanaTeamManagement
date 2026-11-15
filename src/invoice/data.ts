@@ -1,6 +1,8 @@
-import { collection, deleteDoc, deleteField, doc, getDocs, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where, type Unsubscribe } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, onSnapshot, query, setDoc, updateDoc, where, type Unsubscribe } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { auth, db, storage } from '../firebase';
+import { applyInvoiceFilters } from './filters';
+import { createFields, rejectFields, reimburseFields, resubmitFields, updateFields } from './payload';
 import { addDays } from '../../shared/dates';
 import type { ClaimStatus, EventDoc, InvoiceDoc, InvoiceKind } from '../../shared/types';
 import { toastError } from '../ui/toast';
@@ -50,10 +52,7 @@ export function listInvoices(teamId: string, filters: InvoiceFilters, me: Viewer
   const emit = () => {
     const merged = new Map<string, InvoiceRow>();
     for (const m of parts) for (const [id, r] of m) merged.set(id, r);
-    onChange([...merged.values()]
-      .filter((r) => (!filters.kind || r.kind === filters.kind) && (!filters.status || r.status === filters.status)
-        && (!filters.from || r.date >= filters.from) && (!filters.to || r.date <= filters.to))
-      .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)));
+    onChange(applyInvoiceFilters([...merged.values()], filters).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)));
   };
   const queries = me.all
     ? [invoicesRef(teamId)]
@@ -68,11 +67,11 @@ export function listInvoices(teamId: string, filters: InvoiceFilters, me: Viewer
   return () => unsubs.forEach((u) => u());
 }
 
-/** Live single invoice; `null` when it does not exist or may not be read. */
-export function watchInvoice(teamId: string, id: string, onChange: (r: InvoiceRow | null) => void): Unsubscribe {
-  return onSnapshot(doc(db, 'teams', teamId, 'invoices', id),
-    (s) => onChange(s.exists() ? { ...(s.data() as InvoiceDoc), id: s.id } : null),
-    () => onChange(null));
+/** Live single invoice; `null` when it does not exist or may not be read. `pending` = our own write is not yet on the server. */
+export function watchInvoice(teamId: string, id: string, onChange: (r: InvoiceRow | null, pending: boolean) => void): Unsubscribe {
+  return onSnapshot(doc(db, 'teams', teamId, 'invoices', id), { includeMetadataChanges: true },
+    (s) => onChange(s.exists() ? { ...(s.data() as InvoiceDoc), id: s.id } : null, s.metadata.hasPendingWrites),
+    () => onChange(null, false));
 }
 
 /** Download URL for a stored photo. Only works once the invoice doc exists (storage rules read the doc). */
@@ -80,40 +79,34 @@ export async function photoUrl(path: string): Promise<string> {
   return getDownloadURL(ref(storage, path));
 }
 
+/** What survives between attempts of one save, so a retry never uploads a second copy of the photo. */
+export interface SaveState { invoiceId?: string; photo?: Blob; photoPath?: string }
+
 /**
  * Create (id null) or update an invoice. A new photo goes to a NEW file teams/{t}/invoices/{id}/{photoId}.jpg
  * first (storage never overwrites; the doc must not exist yet for the first file), then the doc is written.
  * Replacing a photo just points photoPath at the new file; the old one is deleted by a backend trigger.
  * Create requires a photo. Returns the invoice id. `onProgress` gets 0..1 while uploading.
+ * Pass the same `state` object on every retry of one form: the invoice id and the uploaded photo are kept in
+ * it, so when only the doc write failed the retry writes the doc again and uploads nothing.
  */
-export async function saveInvoice(teamId: string, id: string | null, data: InvoiceInput, photo?: Blob, onProgress?: (fraction: number) => void): Promise<string> {
+export async function saveInvoice(teamId: string, id: string | null, data: InvoiceInput, photo?: Blob, onProgress?: (fraction: number) => void, state: SaveState = {}): Promise<string> {
   const uid = uidOf();
   if (id === null && !photo) throw new Error('photo.required');
-  const invoiceId = id ?? doc(invoicesRef(teamId)).id;
-  let photoPath: string | undefined;
-  if (photo) {
+  const invoiceId = id ?? (state.invoiceId ??= doc(invoicesRef(teamId)).id);
+  if (photo && !(state.photo === photo && state.photoPath)) {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new Error('offline');
-    photoPath = `teams/${teamId}/invoices/${invoiceId}/${newId()}.jpg`;
-    const task = uploadBytesResumable(ref(storage, photoPath), photo, { contentType: 'image/jpeg' });
+    const path = `teams/${teamId}/invoices/${invoiceId}/${newId()}.jpg`;
+    const task = uploadBytesResumable(ref(storage, path), photo, { contentType: 'image/jpeg' });
     task.on('state_changed', (s) => onProgress?.(s.totalBytes ? s.bytesTransferred / s.totalBytes : 0));
     await task;
+    state.photo = photo;
+    state.photoPath = path;
   }
-  const common = { amountSen: data.amountSen, date: data.date, vendor: data.vendor, category: data.category, notes: data.notes };
+  const photoPath = photo ? state.photoPath : undefined;
   const target = doc(db, 'teams', teamId, 'invoices', invoiceId);
-  if (id === null) {
-    const claim = data.kind === 'claim';
-    await ack(setDoc(target, {
-      ...common, kind: data.kind, photoPath, uploadedBy: uid, uploaderName: data.uploaderName,
-      relatedUids: claim ? [] : data.relatedUids, ...(data.eventId ? { eventId: data.eventId } : {}),
-      ...(claim ? { status: 'pending' } : {}), createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
-    }));
-  } else {
-    await ack(updateDoc(target, {
-      ...common, eventId: data.eventId || deleteField(),
-      ...(data.kind === 'company' ? { relatedUids: data.relatedUids } : {}),
-      ...(photoPath ? { photoPath } : {}), updatedAt: serverTimestamp(),
-    }));
-  }
+  if (id === null) await ack(setDoc(target, createFields(uid, data, photoPath!)));
+  else await ack(updateDoc(target, updateFields(data, photoPath)));
   return invoiceId;
 }
 
@@ -121,18 +114,18 @@ export async function saveInvoice(teamId: string, id: string | null, data: Invoi
 export async function setClaimStatus(teamId: string, id: string, status: Exclude<ClaimStatus, 'pending'>, extra: { paidDate?: string; reason?: string } = {}): Promise<void> {
   const target = doc(db, 'teams', teamId, 'invoices', id);
   if (status === 'reimbursed') {
-    await ack(updateDoc(target, { status, paidDate: extra.paidDate || deleteField(), rejectReason: deleteField(), updatedAt: serverTimestamp() }));
+    await ack(updateDoc(target, reimburseFields(extra.paidDate)));
     return;
   }
   const reason = (extra.reason ?? '').trim();
   if (!reason) throw new Error('reason.required');
   if (reason.length > 300) throw new Error('reason.tooLong');
-  await ack(updateDoc(target, { status, rejectReason: reason, paidDate: deleteField(), updatedAt: serverTimestamp() }));
+  await ack(updateDoc(target, rejectFields(reason)));
 }
 
 /** Owner puts a rejected claim back in the queue. */
 export async function resubmitClaim(teamId: string, id: string): Promise<void> {
-  await ack(updateDoc(doc(db, 'teams', teamId, 'invoices', id), { status: 'pending', rejectReason: deleteField(), updatedAt: serverTimestamp() }));
+  await ack(updateDoc(doc(db, 'teams', teamId, 'invoices', id), resubmitFields()));
 }
 
 export async function deleteInvoice(teamId: string, id: string): Promise<void> {

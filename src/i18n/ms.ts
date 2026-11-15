@@ -210,4 +210,8 @@ export const ms: Record<MessageKey, string> = {
   'inv.categoryAdd': 'Tambah kategori',
   'inv.categoryRemove': 'Buang {name}',
   'inv.adminOnly': 'Hanya pentadbir boleh urus kategori.',
+  'photo.tooLarge': 'Gambar ini terlalu besar. Sila guna yang lebih kecil.',
+  'inv.dateRequired': 'Sila pilih tarikh.',
+  'inv.relatedMax': 'Anda boleh pilih paling banyak {n} orang.',
+  'inv.loadError': 'Gagal memuatkan. Semak talian dan cuba lagi.',
 };

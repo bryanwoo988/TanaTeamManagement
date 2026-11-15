@@ -27,8 +27,8 @@ export default function CategoriesPage() {
   }
   async function save() {
     const name = draft.trim().slice(0, 60);
-    const next = name && !list.includes(name) && list.length < MAX_CATEGORIES ? [...list, name] : list;
-    await persist(next);
+    if (!name) return; // nothing to add
+    if (!list.includes(name) && list.length < MAX_CATEGORIES) await persist([...list, name]);
     setDraft('');
   }
 

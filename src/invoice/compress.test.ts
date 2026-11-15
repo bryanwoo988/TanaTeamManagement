@@ -62,6 +62,11 @@ describe('compressImage', () => {
     expect(out.size).toBe(400_000);
   });
 
+  it('throws photo.tooLarge when even the smallest pass is 2 MB or more', async () => {
+    sizes = [3_000_000, 2_500_000, 2_200_000];
+    await expect(compressImage(fakeImage(4000, 3000))).rejects.toThrow('photo.tooLarge');
+  });
+
   it('throws photo.unreadable when the file cannot be decoded', async () => {
     vi.stubGlobal('createImageBitmap', vi.fn().mockRejectedValue(new Error('bad')));
     await expect(compressImage(new File(['x'], 'a.heic'))).rejects.toThrow('photo.unreadable');

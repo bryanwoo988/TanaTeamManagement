@@ -114,6 +114,29 @@ describe('saveInvoice', () => {
   });
 });
 
+describe('retrying a failed create', () => {
+  it('doc write fails once: the retry uploads no second file and reuses the invoice id and photoPath', async () => {
+    const state = {};
+    setDoc.mockRejectedValueOnce(new Error('denied'));
+    await expect(saveInvoice('t1', null, input, photo, undefined, state)).rejects.toThrow('denied');
+    await saveInvoice('t1', null, input, photo, undefined, state);
+    expect(uploadBytesResumable).toHaveBeenCalledTimes(1);
+    expect(setDoc).toHaveBeenCalledTimes(2);
+    expect(setDoc.mock.calls[1][0]).toEqual(setDoc.mock.calls[0][0]);
+    expect(setDoc.mock.calls[1][1].photoPath).toBe(setDoc.mock.calls[0][1].photoPath);
+  });
+
+  it('upload fails then succeeds: still one invoice id; a different photo gets a new upload', async () => {
+    const state = {};
+    uploadBytesResumable.mockImplementationOnce(() => Object.assign(Promise.reject(new Error('net')), { on: () => {} }));
+    await expect(saveInvoice('t1', null, input, photo, undefined, state)).rejects.toThrow('net');
+    await saveInvoice('t1', null, input, photo, undefined, state);
+    await saveInvoice('t1', null, input, new Blob(['y'], { type: 'image/jpeg' }), undefined, state);
+    expect(uploadBytesResumable).toHaveBeenCalledTimes(3);
+    expect(new Set(uploadBytesResumable.mock.calls.map((c) => (c[0].fullPath as string).split('/')[3])).size).toBe(1);
+  });
+});
+
 describe('claim processing', () => {
   it('reimburse sets paidDate and clears any old rejectReason', async () => {
     await setClaimStatus('t1', 'i1', 'reimbursed', { paidDate: '2026-11-12' });
