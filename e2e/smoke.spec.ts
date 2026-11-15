@@ -132,12 +132,16 @@ test('team lifecycle: create, join, approve, assign, claim, reimburse, export, a
   await alice.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Settings' }).click();
   await alice.getByRole('button', { name: 'Melayu' }).click();
   await expect(alice.getByRole('heading', { name: 'Tetapan', exact: true })).toBeVisible();
+  await alice.getByRole('link', { name: /Paparan/ }).click();
+  await expect(alice.getByRole('heading', { name: 'Paparan', exact: true })).toBeVisible();
   await alice.getByRole('button', { name: 'Gelap' }).click();
   await alice.getByRole('button', { name: 'OLED Black' }).click();
   await expect(alice.getByRole('button', { name: 'OLED Black' })).toHaveAttribute('aria-pressed', 'true');
   await expect(alice.locator('body')).toHaveCSS('background-color', 'rgb(0, 0, 0)');
   // The fixed bottom nav would sit across a full-page/element capture, so it is hidden for the shots.
   const noNav = '.bottom-nav, .nav-spacer { display: none !important; }';
-  await alice.screenshot({ path: `${SHOTS}settings-ms-oled.png`, fullPage: true, style: noNav });
+  await alice.screenshot({ path: `${SHOTS}appearance-page-ms-oled.png`, fullPage: true, style: noNav });
   await alice.locator('section.appearance').screenshot({ path: `${SHOTS}appearance-ms-oled-390.png`, style: noNav });
+  await alice.getByRole('link', { name: 'Tetapan' }).first().click();
+  await alice.screenshot({ path: `${SHOTS}settings-ms-oled.png`, fullPage: true, style: noNav });
 });

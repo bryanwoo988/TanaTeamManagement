@@ -15,8 +15,7 @@ vi.mock('../auth/AuthProvider', () => ({
 }));
 vi.mock('../api', () => ({ leaveTeam: (...a: unknown[]) => leaveTeam(...a), requestPhoneChangeCode: vi.fn(), confirmPhoneChange: vi.fn() }));
 vi.mock('../ui/confirm', () => ({ confirmSheet: (...a: unknown[]) => confirmSheet(...a) }));
-vi.mock('../notify/NotifySettings', () => ({ default: () => <section aria-label="notify-settings" /> }));
-vi.mock('../theme/AppearanceSettings', () => ({ default: () => <section aria-label="appearance-settings" /> }));
+vi.mock('../notify/push', () => ({ pushState: () => 'off', resolvePushState: () => Promise.resolve('on') }));
 
 import { TeamProvider } from '../team/TeamContext';
 import SettingsPage from './SettingsPage';
@@ -31,12 +30,17 @@ function setup(current: string, role: 'admin' | 'member' = 'admin') {
 beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); listeners.clear(); setLang('en'); confirmSheet.mockResolvedValue(true); });
 
 describe('SettingsPage', () => {
-  it('shows language, appearance, notifications, change phone and sign out', async () => {
+  it('shows grouped rows linking to sub-pages, language switch, version and sign out', async () => {
     setup('personal');
+    expect(screen.getByRole('link', { name: /Ali/ })).toHaveAttribute('href', '/settings/account');
+    expect(screen.getByRole('link', { name: /Ali/ })).toHaveTextContent('+60 12-345 6789');
+    expect(screen.getByRole('link', { name: /Notifications/ })).toHaveAttribute('href', '/settings/notifications');
+    expect(await screen.findByRole('link', { name: /Notifications.*On/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Appearance/ })).toHaveAttribute('href', '/settings/appearance');
+    expect(screen.getByRole('link', { name: /Share this app/ })).toHaveAttribute('href', '/settings/share');
+    expect(screen.getByRole('link', { name: /About.*v1\.4\.0/ })).toHaveAttribute('href', '/settings/about');
     expect(screen.getByRole('group', { name: 'Language' })).toBeInTheDocument();
-    expect(screen.getByLabelText('appearance-settings')).toBeInTheDocument();
-    expect(screen.getByLabelText('notify-settings')).toBeInTheDocument();
-    expect(screen.getByLabelText('New mobile number')).toBeInTheDocument();
+    expect(screen.getByText('Version 1.4.0')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Leave team' })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(signOut).toHaveBeenCalled();
@@ -44,9 +48,9 @@ describe('SettingsPage', () => {
 
   it('lists team links for an admin and leaves the team after confirming', async () => {
     setup('a');
-    expect(screen.getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/team/a/members');
-    expect(screen.getByRole('link', { name: 'Invoice categories' })).toHaveAttribute('href', '/team/a/invoices/categories');
-    expect(screen.getByRole('link', { name: 'Export' })).toHaveAttribute('href', '/team/a/export');
+    expect(screen.getByRole('link', { name: /Members/ })).toHaveAttribute('href', '/team/a/members');
+    expect(screen.getByRole('link', { name: /Invoice categories/ })).toHaveAttribute('href', '/team/a/invoices/categories');
+    expect(screen.getByRole('link', { name: /Export/ })).toHaveAttribute('href', '/team/a/export');
     leaveTeam.mockResolvedValue({});
     await userEvent.click(screen.getByRole('button', { name: 'Leave team' }));
     expect(confirmSheet).toHaveBeenCalled();
@@ -55,8 +59,8 @@ describe('SettingsPage', () => {
 
   it('hides categories from non-admins', () => {
     setup('a', 'member');
-    expect(screen.getByRole('link', { name: 'Members' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Invoice categories' })).toBeNull();
+    expect(screen.getByRole('link', { name: /Members/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Invoice categories/ })).toBeNull();
   });
 
   it('refuses with the translated last-admin message', async () => {

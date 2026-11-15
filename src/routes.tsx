@@ -14,6 +14,11 @@ import InvoiceDetail from './invoice/InvoiceDetail';
 import CategoriesPage from './invoice/CategoriesPage';
 import ExportPage from './export/ExportPage';
 import SettingsPage from './settings/SettingsPage';
+import AccountPage from './settings/AccountPage';
+import NotificationsSettingsPage from './settings/NotificationsSettingsPage';
+import AppearancePage from './settings/AppearancePage';
+import SharePage from './settings/SharePage';
+import AboutPage from './settings/AboutPage';
 import BottomNav from './nav/BottomNav';
 import PushBanner from './notify/PushBanner';
 import ConfirmHost from './ui/ConfirmHost';
@@ -55,6 +60,11 @@ export const routes = [
       { index: true, element: <CalendarPage /> },
       { path: 'notifications', element: <NotificationsPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'settings/account', element: <AccountPage /> },
+      { path: 'settings/notifications', element: <NotificationsSettingsPage /> },
+      { path: 'settings/appearance', element: <AppearancePage /> },
+      { path: 'settings/share', element: <SharePage /> },
+      { path: 'settings/about', element: <AboutPage /> },
       { path: 'teams/new', element: <CreateJoinPage /> },
       { path: 'export', element: <ExportPage /> },
       { path: 'team/:teamId/export', element: <ExportPage /> },
