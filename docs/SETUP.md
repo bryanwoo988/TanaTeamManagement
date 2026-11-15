@@ -120,7 +120,7 @@ gsutil cors set cors.json gs://你的bucket名字
 npx web-push generate-vapid-keys
 ```
 
-会输出 **Public Key** 和 **Private Key**。Public Key 两个地方都要用（服务器密钥 + 网页设定），Private Key 只放服务器，**不要放进网页设定或 Git**。
+会输出 **Public Key** 和 **Private Key**。两个都只放服务器密钥（第 8 节），**不要放进网页设定或 Git**。网页会在运行时向服务器（`getPushConfig`）取 Public Key，所以网页和服务器用的金钥永远一致。
 
 ## 8. 服务器密钥（Secret Manager）与权限
 
@@ -167,11 +167,12 @@ VITE_FIREBASE_STORAGE_BUCKET=你的bucket名字
 VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
 VITE_RECAPTCHA_KEY=（先留空，9.3 做完再填）
-VITE_VAPID_PUBLIC_KEY=（第 7 步的 Public Key）
 VITE_USE_EMULATORS=false
 ```
 
 `.env.local` 已在 `.gitignore` 里，不会被提交。
+
+> 旧版本要求的 `VITE_VAPID_PUBLIC_KEY` 已经不用了，`.env.local` 里有的话可以删掉。
 
 ### 9.3 App Check（reCAPTCHA Enterprise）
 
@@ -225,15 +226,18 @@ npm run deploy
 
 ### 13.3 GitHub Secrets
 
-GitHub 仓库 → **Settings → Secrets and variables → Actions → New repository secret**，建五个：
+GitHub 仓库 → **Settings → Secrets and variables → Actions → New repository secret**，建四个：
 
 | 名称 | 值 |
 |---|---|
 | `FIREBASE_SERVICE_ACCOUNT` | 13.2 的整个 JSON 内容 |
 | `FIREBASE_API_KEY` | Firebase → 项目设定 → 你的应用程式 → Config 里的 `apiKey`（`AIza…`，从 Firebase 后台复制，不要从聊天记录复制） |
 | `RECAPTCHA_KEY` | 9.3 的 reCAPTCHA 金钥 ID（`6L…`） |
-| `VAPID_PUBLIC_KEY` | 第 7 步的 Public Key |
 | `VAPID_SUBJECT` | `mailto:你的邮箱` |
+
+> 以前建过的 GitHub Secret `VAPID_PUBLIC_KEY` 已经不用了，可以删除（Settings → Secrets and variables → Actions → 点它 → Remove）。推送用的 Public Key 只保存在服务器密钥（Secret Manager）`VAPID_PUBLIC_KEY`，网页运行时向服务器取。
+>
+> 推送测试：App → 设定 → 通知设定 → **发送测试通知**。显示「已发送到 N 部设备」就正常；显示状态 401/403 表示服务器的 VAPID 金钥对不上（Public/Private 不是同一对），请重新生成一对并同时更新两个服务器密钥，然后在手机上关掉再开启通知。
 
 ### 13.4 第一次跑
 

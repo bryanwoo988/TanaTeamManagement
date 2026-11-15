@@ -29,3 +29,8 @@ export const addMemberByPhone = (teamId: string, phone: string, name: string, ro
 export const cancelPhoneInvite = (teamId: string, phone: string) =>
   call<{ teamId: string; phone: string }, Record<string, never>>('cancelPhoneInvite', { teamId, phone });
 export const leaveTeam = (teamId: string) => call<{ teamId: string }, Record<string, never>>('leaveTeam', { teamId });
+
+// Push: the server's VAPID public key (single source of truth) and a self-test to the caller's own devices.
+export interface PushTestResult { host: string; ok: boolean; statusCode?: number; message?: string }
+export const getPushConfig = () => call<Record<string, never>, { vapidPublicKey: string }>('getPushConfig', {});
+export const sendTestPush = () => call<Record<string, never>, { results: PushTestResult[] }>('sendTestPush', {});
