@@ -3,6 +3,7 @@ import { onAuthStateChanged, signOut as fbSignOut, type User } from 'firebase/au
 import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import type { UserDoc } from '../../shared/types';
+import { disablePush } from '../notify/push';
 
 export interface AuthState {
   user: User | null;
@@ -20,7 +21,23 @@ export function useAuth(): AuthState {
   return useContext(AuthContext);
 }
 
-export const signOut = () => fbSignOut(auth);
+const PUSH_CLEANUP_MS = 3000;
+
+/** Drop this device's push subscription for the signed-in user (so the next person on this device
+    gets none of their pushes), then sign out. Cleanup is best effort and capped so an offline
+    sign-out never hangs. */
+export async function signOut(): Promise<void> {
+  const uid = auth.currentUser?.uid;
+  if (uid && typeof navigator !== 'undefined' && 'serviceWorker' in navigator && typeof PushManager !== 'undefined') {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      disablePush(uid).catch(() => {}),
+      new Promise<void>((r) => { timer = setTimeout(r, PUSH_CLEANUP_MS); }),
+    ]);
+    clearTimeout(timer);
+  }
+  await fbSignOut(auth);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null | undefined>(undefined);
