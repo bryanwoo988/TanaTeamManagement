@@ -11,6 +11,13 @@ export const zh = {
   langZh: '华语',
   langEn: 'English',
   langMs: 'Melayu',
+  appearanceTitle: '外观',
+  appearanceModeSystem: '跟随手机',
+  appearanceModeLight: '浅色',
+  appearanceModeDark: '深色',
+  appearanceHelp: '跟随手机时，手机是浅色就用你选的浅色主题，深色就用你选的深色主题。',
+  appearanceLight: '浅色主题',
+  appearanceDark: '深色主题',
 } as const;
 
 export type MessageKey = keyof typeof zh;

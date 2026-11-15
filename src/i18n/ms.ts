@@ -13,4 +13,11 @@ export const ms: Record<MessageKey, string> = {
   langZh: '华语',
   langEn: 'English',
   langMs: 'Melayu',
+  appearanceTitle: 'Penampilan',
+  appearanceModeSystem: 'Ikut sistem',
+  appearanceModeLight: 'Cerah',
+  appearanceModeDark: 'Gelap',
+  appearanceHelp: 'Dalam mod Ikut sistem, app mengikut telefon anda: tema cerah anda apabila telefon cerah, tema gelap anda apabila telefon gelap.',
+  appearanceLight: 'Tema cerah',
+  appearanceDark: 'Tema gelap',
 };
