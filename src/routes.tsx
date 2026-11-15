@@ -3,6 +3,10 @@ import { useAuth } from './auth/AuthProvider';
 import LoginPage from './auth/LoginPage';
 import ProfileSetup from './auth/ProfileSetup';
 import { useT } from './i18n';
+import { TeamProvider } from './team/TeamContext';
+import TeamSwitcher from './team/TeamSwitcher';
+import CreateJoinPage from './team/CreateJoinPage';
+import MembersPage from './team/MembersPage';
 import ConfirmHost from './ui/ConfirmHost';
 import Toaster from './ui/Toaster';
 
@@ -21,13 +25,18 @@ function Gate() {
     );
   }
   if (!profile) return <ProfileSetup />;
-  return <Outlet />;
+  return <TeamProvider><Outlet /></TeamProvider>;
 }
 
 function Home() {
   const { profile } = useAuth();
   const { t } = useT();
-  return <main><h1>{t('greet', { name: profile?.name ?? '' })}</h1></main>;
+  return (
+    <>
+      <header className="topbar"><TeamSwitcher /></header>
+      <main><h1>{t('greet', { name: profile?.name ?? '' })}</h1></main>
+    </>
+  );
 }
 
 function Shell() {
@@ -44,6 +53,10 @@ export const routes = [
   {
     path: '/',
     element: <Shell />,
-    children: [{ index: true, element: <Home /> }],
+    children: [
+      { index: true, element: <Home /> },
+      { path: 'teams/new', element: <CreateJoinPage /> },
+      { path: 'team/:teamId/members', element: <MembersPage /> },
+    ],
   },
 ];

@@ -151,3 +151,16 @@ h2.err { color: var(--err); }
 .boot { min-height: 100dvh; display: grid; place-items: center; }
 .profile-setup { padding: calc(24px + var(--safe-top)) 16px 24px; max-width: 480px; margin: 0 auto; }
 .login-lang .lang-picker { justify-content: center; }
+/* ---------- teams ---------- */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(8px + var(--safe-top)) 16px 8px; }
+.team-switcher { position: relative; }
+.team-switcher > .btn { display: inline-flex; align-items: center; gap: 6px; }
+.team-menu { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; min-width: 220px; margin: 0; box-shadow: var(--shadow); }
+.team-list { list-style: none; margin: 0 0 10px; padding: 0; }
+.team-list li { padding: 12px 8px; border-radius: 10px; cursor: pointer; }
+.team-list li[aria-selected="true"] { background: var(--accent-soft); font-weight: 700; }
+.team-list li[aria-disabled="true"] { opacity: 0.6; cursor: default; }
+.plain-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.plain-list li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: space-between; }
+.plain-list li > span:first-child { flex: 1; min-width: 120px; }
+.plain-list select { width: auto; }
