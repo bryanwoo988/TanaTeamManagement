@@ -65,11 +65,15 @@ export async function enablePush(uid: string): Promise<void> {
   }
 }
 
-/** Remove this device's registration, then unsubscribe it. */
+/**
+ * Remove this device's registration and unsubscribe it. The unsubscribe does not wait for the delete:
+ * offline, a Firestore delete stays queued until this user is online and signed in again, while a dead endpoint makes the
+ * server's next push fail with 410 and remove the registration itself.
+ */
 export async function disablePush(uid: string): Promise<void> {
   const reg = await navigator.serviceWorker.ready;
   const sub = await reg.pushManager.getSubscription();
   if (!sub) return;
-  await deleteDoc(doc(db, 'users', uid, 'pushSubs', await subId(sub.endpoint)));
-  await sub.unsubscribe();
+  const removed = deleteDoc(doc(db, 'users', uid, 'pushSubs', await subId(sub.endpoint)));
+  try { await sub.unsubscribe(); } finally { await removed; }
 }

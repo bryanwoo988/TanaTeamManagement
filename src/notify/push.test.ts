@@ -98,6 +98,16 @@ describe('enable / disable', () => {
     expect(deleteDoc.mock.calls[0][0].path).toBe(ref.path);
     expect(sub.unsubscribe).toHaveBeenCalled();
   });
+  it('disable unsubscribes the browser even while the registration delete is still queued (offline)', async () => {
+    env(ANDROID);
+    const sub = { endpoint: 'https://p/x', unsubscribe: vi.fn().mockResolvedValue(true) };
+    (navigator as unknown as { serviceWorker: unknown }).serviceWorker = { ready: Promise.resolve({ pushManager: { getSubscription: vi.fn().mockResolvedValue(sub) } }) };
+    deleteDoc.mockReturnValueOnce(new Promise(() => {}));
+    void disablePush('u1');
+    await vi.waitFor(() => expect(sub.unsubscribe).toHaveBeenCalled());
+    expect(deleteDoc).toHaveBeenCalled();
+  });
+
   it('unsubscribes again if registering fails', async () => {
     env(ANDROID);
     const sub = { endpoint: 'https://p/x', toJSON: () => ({ keys: {} }), unsubscribe: vi.fn().mockResolvedValue(true) };
