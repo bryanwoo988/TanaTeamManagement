@@ -17,13 +17,15 @@ export interface ThemeTokens {
   team: string[];
   /** Status colours; the *Soft fills sit behind normal text (fg), so they must stay readable under it. */
   ok: string; okSoft: string; warn: string; warnSoft: string; err: string; errSoft: string;
+  /** Text/icon colour on a solid ok/warn/err fill. */
+  okFg: string; warnFg: string; errFg: string;
 }
 
 const LIGHT_TEAM = ['#c2410c', '#15803d', '#1d4ed8', '#a21caf', '#b45309', '#0e7490'];
 const DARK_TEAM = ['#f59e0b', '#4ade80', '#60a5fa', '#e879f9', '#fb7185', '#22d3ee'];
 
-const LIGHT_STATUS = { ok: '#2f7d4f', okSoft: '#e1f1e6', warn: '#b7791f', warnSoft: '#faefd6', err: '#b3392f', errSoft: '#f8e0dc' };
-const DARK_STATUS = { ok: '#4ade80', okSoft: '#16301f', warn: '#f5b83d', warnSoft: '#37290e', err: '#f87171', errSoft: '#3d1b19' };
+const LIGHT_STATUS = { ok: '#2f7d4f', okSoft: '#e1f1e6', warn: '#b7791f', warnSoft: '#faefd6', err: '#b3392f', errSoft: '#f8e0dc', okFg: '#ffffff', warnFg: '#1a1208', errFg: '#ffffff' };
+const DARK_STATUS = { ok: '#4ade80', okSoft: '#16301f', warn: '#f5b83d', warnSoft: '#37290e', err: '#f87171', errSoft: '#3d1b19', okFg: '#0b1f12', warnFg: '#1a1208', errFg: '#2a0b0b' };
 
 export const THEMES: Record<ThemeId, ThemeTokens> = {
   classic: {
