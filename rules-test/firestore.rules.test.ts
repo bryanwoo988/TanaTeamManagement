@@ -210,6 +210,22 @@ describe('users/{uid} subcollections', () => {
     await assertFails(setDoc(doc(as('mem2'), 'users/mem/pushSubs/s3'), sub));
   });
 
+  it('pushSubs: only a well-formed subscription is stored', async () => {
+    const ok = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc', keys: { p256dh: 'P'.repeat(87), auth: 'A'.repeat(22) }, ua: 'Mozilla/5.0', createdAt: serverTimestamp() };
+    const put = (d: object) => setDoc(doc(as('mem'), 'users/mem/pushSubs/s4'), d);
+    await assertSucceeds(put(ok));
+    await assertFails(put({ ...ok, extra: 'x' }));
+    await assertFails(put({ ...ok, endpoint: 'http://push.example/x' }));
+    await assertFails(put({ ...ok, endpoint: 'https://' + 'x'.repeat(1001) }));
+    await assertFails(put({ ...ok, endpoint: 42 }));
+    await assertFails(put({ ...ok, keys: { p256dh: 'P'.repeat(200), auth: 'A' } }));
+    await assertFails(put({ ...ok, keys: { p256dh: 'P', auth: 'A'.repeat(200) } }));
+    await assertFails(put({ ...ok, keys: { p256dh: 'P', auth: 7 } }));
+    await assertFails(put({ ...ok, keys: { p256dh: 'P', auth: 'A', more: 'x' } }));
+    await assertFails(put({ ...ok, ua: 'u'.repeat(300) }));
+    await assertFails(put({ ...ok, ua: 5 }));
+  });
+
   it('notifications: own read, only toggle read', async () => {
     await assertSucceeds(getDoc(doc(as('mem'), 'users/mem/notifications/n1')));
     await assertSucceeds(updateDoc(doc(as('mem'), 'users/mem/notifications/n1'), { read: true }));

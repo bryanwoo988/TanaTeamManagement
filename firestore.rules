@@ -88,8 +88,19 @@ service cloud.firestore {
         allow create: if isMe(uid) && eventCreateOk();
         allow update: if isMe(uid) && eventUpdateOk();
       }
+      // The server pushes to whatever endpoint is stored here: accept only a well-formed subscription.
+      function pushSubOk(d) {
+        return d.keys().hasAll(['endpoint', 'keys', 'ua', 'createdAt'])
+          && d.keys().hasOnly(['endpoint', 'keys', 'ua', 'createdAt'])
+          && d.endpoint is string && d.endpoint.matches('^https://.{1,1000}$')
+          && d.keys is map && d.keys.keys().hasOnly(['p256dh', 'auth'])
+          && d.keys.p256dh is string && d.keys.p256dh.size() < 200
+          && d.keys.auth is string && d.keys.auth.size() < 200
+          && d.ua is string && d.ua.size() < 300;
+      }
       match /pushSubs/{id} {
-        allow read, write: if isMe(uid);
+        allow read, delete: if isMe(uid);
+        allow create, update: if isMe(uid) && pushSubOk(request.resource.data);
       }
       match /notifications/{id} {
         allow read: if isMe(uid);
