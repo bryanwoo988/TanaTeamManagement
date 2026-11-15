@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { Plus } from 'lucide-react';
 import { db } from '../firebase';
@@ -21,11 +21,12 @@ import CopyDatesSheet from './CopyDatesSheet';
 const LAYERS_KEY = 'calLayers';
 const scopeOf = (layer: string): Scope => (layer === 'personal' ? 'personal' : { teamId: layer });
 
-function readEnabled(): string[] | null {
+/** Ids of layers the user switched off; anything else (including a newly joined team) is shown. */
+function readDisabled(): string[] {
   try {
     const v = JSON.parse(localStorage.getItem(LAYERS_KEY) ?? 'null');
-    return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : null;
-  } catch { return null; }
+    return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
+  } catch { return []; }
 }
 
 function shiftMonth(month: string, delta: number): string {
@@ -50,12 +51,11 @@ export default function CalendarPage() {
   const today = klDate(new Date());
   const [month, setMonth] = useState(today.slice(0, 7));
   const [selected, setSelected] = useState(today);
-  const [stored, setStored] = useState<string[] | null>(readEnabled);
+  const [disabled, setDisabled] = useState<string[]>(readDisabled);
   const [byLayer, setByLayer] = useState<Record<string, CalEvent[]>>({});
   const [people, setPeople] = useState<Record<string, Person[]>>({});
   const [editing, setEditing] = useState<Editing | null>(null);
   const [copying, setCopying] = useState<CalEvent | null>(null);
-  const [reload, setReload] = useState(0);
 
   // Layers: personal first, then each team the user is active in (colour by position in the user's team list).
   const teamKey = teams.map((x) => `${x.teamId}|${x.name}|${isActive(x) ? 1 : 0}`).join(',');
@@ -66,18 +66,16 @@ export default function CalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamKey, theme, t]);
   const layerKey = layers.map((l) => l.id).join(',');
-  const enabled = layers.filter((l) => stored === null || stored.includes(l.id)).map((l) => l.id);
+  const enabled = layers.filter((l) => !disabled.includes(l.id)).map((l) => l.id);
 
   useEffect(() => {
-    let live = true;
     const from = `${month}-01`;
     const [y, m] = month.split('-').map(Number);
     const to = `${month}-${new Date(Date.UTC(y, m, 0)).getUTCDate()}`;
-    Promise.all(layerKey.split(',').map(async (id) => [id, (await listEvents(scopeOf(id), from, to)).map((e) => ({ ...e, layer: id }))] as const))
-      .then((rows) => { if (live) setByLayer(Object.fromEntries(rows)); })
-      .catch(() => { if (live) toastError(); });
-    return () => { live = false; };
-  }, [month, layerKey, reload]);
+    const unsubs = layerKey.split(',').map((id) => listEvents(scopeOf(id), from, to,
+      (list) => setByLayer((p) => ({ ...p, [id]: list.map((e) => ({ ...e, layer: id })) })), () => toastError()));
+    return () => unsubs.forEach((u) => u());
+  }, [month, layerKey]);
 
   useEffect(() => {
     const unsubs = layerKey.split(',').filter((id) => id !== 'personal').map((id) =>
@@ -97,12 +95,13 @@ export default function CalendarPage() {
   }, [people, uid, profile?.name]);
   const editorMembers = useMemo(() => ({ ...people, personal: [{ uid, name: profile?.name ?? '' }] }), [people, uid, profile?.name]);
 
-  const visible = enabled.flatMap((id) => byLayer[id] ?? []).filter((e) => layerKey.includes(e.layer));
+  const known = new Set(layers.map((l) => l.id));
+  const visible = enabled.flatMap((id) => byLayer[id] ?? []).filter((e) => known.has(e.layer));
   const dayEvents = visible.filter((e) => e.date === selected);
 
   function toggleLayer(id: string) {
-    const next = enabled.includes(id) ? enabled.filter((x) => x !== id) : [...enabled, id];
-    setStored(next);
+    const next = disabled.includes(id) ? disabled.filter((x) => x !== id) : [...disabled, id];
+    setDisabled(next);
     try { localStorage.setItem(LAYERS_KEY, JSON.stringify(next)); } catch { /* keep in memory only */ }
   }
 
@@ -115,7 +114,6 @@ export default function CalendarPage() {
   const editorLayers: EditorLayer[] = layers.map((l) => ({ id: l.id, name: l.name, admin: l.id !== 'personal' && member(l.id)?.role === 'admin' }));
   const initialLayer = layers.some((l) => l.id === current) ? current : 'personal';
   const overlay = !!editing || !!copying;
-  const refresh = useCallback(() => setReload((n) => n + 1), []);
 
   async function doCopy(dates: string[]) {
     if (!copying) return;
@@ -123,7 +121,6 @@ export default function CalendarPage() {
     // Members may only create events assigned to themselves.
     await copyEvent(scopeOf(copying.layer), admin ? copying : { ...copying, assignees: [uid] }, dates);
     toast({ kind: 'ok', title: t('cal.copied', { n: dates.length }) });
-    refresh();
   }
 
   return (
@@ -147,7 +144,7 @@ export default function CalendarPage() {
           key={editing.event ? `${editing.event.layer}/${editing.event.id}` : 'new'}
           event={editing.event} date={selected} layers={editorLayers} initialLayer={initialLayer} members={editorMembers} uid={uid}
           readOnly={!!editing.event && editing.event.layer !== 'personal' && !canEditEvent(member(editing.event.layer), editing.event, uid)}
-          onClose={() => setEditing(null)} onChanged={refresh}
+          onClose={() => setEditing(null)}
           onCopy={(e) => { setEditing(null); setCopying(e); }}
         />
       )}

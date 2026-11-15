@@ -4,10 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { emit, listeners } from '../team/fsMock';
 
-const listEvents = vi.fn();
+const feeds = new Map<string, (l: unknown[]) => void>();
+const key = (s: unknown) => (s === 'personal' ? 'personal' : (s as { teamId: string }).teamId);
+const listEvents = vi.fn((scope: unknown, _f: string, _t: string, cb: (l: unknown[]) => void) => {
+  feeds.set(key(scope), cb);
+  cb(scope === 'personal' ? personalEv : teamEv);
+  return () => feeds.delete(key(scope));
+});
 const copyEvent = vi.fn().mockResolvedValue(undefined);
 vi.mock('./data', () => ({
-  listEvents: (...a: unknown[]) => listEvents(...a),
+  listEvents: (...a: unknown[]) => (listEvents as (...x: unknown[]) => unknown)(...a),
   copyEvent: (...a: unknown[]) => copyEvent(...a),
   saveEvent: vi.fn(), deleteEvent: vi.fn(),
 }));
@@ -41,15 +47,15 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-15T04:00:00Z'));
   vi.clearAllMocks(); listeners.clear(); localStorage.clear(); setLang('en');
-  listEvents.mockImplementation(async (scope: unknown) => scope === 'personal' ? personalEv : teamEv);
+  feeds.clear();
 });
 afterEach(() => vi.useRealTimers());
 
 describe('CalendarPage', () => {
   it('overlays personal and active team events; pending teams are not a layer', async () => {
     await setup();
-    expect(listEvents).toHaveBeenCalledWith('personal', '2026-11-01', '2026-11-30');
-    expect(listEvents).toHaveBeenCalledWith({ teamId: 't1' }, '2026-11-01', '2026-11-30');
+    expect(listEvents).toHaveBeenCalledWith('personal', '2026-11-01', '2026-11-30', expect.any(Function), expect.any(Function));
+    expect(listEvents).toHaveBeenCalledWith({ teamId: 't1' }, '2026-11-01', '2026-11-30', expect.any(Function), expect.any(Function));
     expect(listEvents).not.toHaveBeenCalledWith({ teamId: 't2' }, expect.anything(), expect.anything());
     expect(screen.getByRole('button', { name: '2026-11-10' }).querySelectorAll('.dot')).toHaveLength(2);
     const list = screen.getByRole('list', { name: 'Events' });
@@ -63,7 +69,20 @@ describe('CalendarPage', () => {
     expect(screen.queryByText('Spray')).toBeNull();
     expect(screen.getByText('Dentist')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '2026-11-10' }).querySelectorAll('.dot')).toHaveLength(1);
-    expect(JSON.parse(localStorage.getItem('calLayers')!)).toEqual(['personal']);
+    expect(JSON.parse(localStorage.getItem('calLayers')!)).toEqual(['t1']);
+  });
+
+  it('a newly joined layer is visible when only others were switched off', async () => {
+    localStorage.setItem('calLayers', JSON.stringify(['personal']));
+    await setup();
+    expect(screen.getByText('Spray')).toBeInTheDocument();
+    expect(screen.queryByText('Dentist')).toBeNull();
+  });
+
+  it('live updates from a teammate appear without reloading', async () => {
+    await setup();
+    act(() => feeds.get('t1')!([...teamEv, { ...mk('New job', '2026-11-10', { start: '16:00', end: '17:00' }), id: 'e3' }]));
+    expect(screen.getByText('New job')).toBeInTheDocument();
   });
 
   it('a member can only edit events they are assigned to', async () => {

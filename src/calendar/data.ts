@@ -1,7 +1,8 @@
-import { addDoc, collection, deleteDoc, deleteField, doc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { collection, deleteDoc, deleteField, doc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where, writeBatch, type Unsubscribe } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { copyEventToDates } from '../../shared/copyDates';
 import type { EventDoc } from '../../shared/types';
+import { toastError } from '../ui/toast';
 
 /** A team's shared calendar, or the signed-in user's personal one. */
 export type Scope = { teamId: string } | 'personal';
@@ -22,11 +23,18 @@ const eventsRef = (scope: Scope, uid: string) =>
 const eventRef = (scope: Scope, uid: string, id: string) =>
   scope === 'personal' ? doc(db, 'users', uid, 'events', id) : doc(db, 'teams', scope.teamId, 'events', id);
 
-/** Events with from <= date <= to (YYYY-MM-DD, inclusive). */
-export async function listEvents(scope: Scope, from: string, to: string): Promise<(EventDoc & { id: string })[]> {
+/**
+ * Live events with from <= date <= to (YYYY-MM-DD, inclusive). Calls onChange on every snapshot
+ * (including pending local writes); returns the unsubscribe function.
+ */
+export function listEvents(scope: Scope, from: string, to: string, onChange: (events: (EventDoc & { id: string })[]) => void, onError?: (e: unknown) => void): Unsubscribe {
   const q = query(eventsRef(scope, uidOf()), where('date', '>=', from), where('date', '<=', to));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ ...(d.data() as EventDoc), id: d.id }));
+  return onSnapshot(q, (snap) => onChange(snap.docs.map((d) => ({ ...(d.data() as EventDoc), id: d.id }))), (e) => onError?.(e));
+}
+
+/** Writes resolve only on server ack, which never comes offline: start them, report a late failure, don't wait. */
+function fire(p: Promise<unknown>): void {
+  p.catch(() => toastError());
 }
 
 function fields(scope: Scope, uid: string, e: EventInput) {
@@ -34,7 +42,7 @@ function fields(scope: Scope, uid: string, e: EventInput) {
   return out;
 }
 
-/** Create (id null) or update an event. Always stamps updatedAt; create also sets createdBy. */
+/** Create (id null) or update an event. Always stamps updatedAt; create also sets createdBy. Returns without waiting for the server. */
 export async function saveEvent(scope: Scope, id: string | null, e: EventInput): Promise<void> {
   const uid = uidOf();
   const timed = !e.allDay;
@@ -42,16 +50,16 @@ export async function saveEvent(scope: Scope, id: string | null, e: EventInput):
   if (id === null) {
     if (timed && e.start) data.start = e.start;
     if (timed && e.end) data.end = e.end;
-    await addDoc(eventsRef(scope, uid), { ...data, createdBy: uid, updatedAt: serverTimestamp() });
+    fire(setDoc(doc(eventsRef(scope, uid)), { ...data, createdBy: uid, updatedAt: serverTimestamp() }));
     return;
   }
   data.start = timed && e.start ? e.start : deleteField();
   data.end = timed && e.end ? e.end : deleteField();
-  await updateDoc(eventRef(scope, uid, id), { ...data, updatedAt: serverTimestamp() });
+  fire(updateDoc(eventRef(scope, uid, id), { ...data, updatedAt: serverTimestamp() }));
 }
 
 export async function deleteEvent(scope: Scope, id: string): Promise<void> {
-  await deleteDoc(eventRef(scope, uidOf(), id));
+  fire(deleteDoc(eventRef(scope, uidOf(), id)));
 }
 
 function newBatchId(): string {
@@ -71,5 +79,5 @@ export async function copyEvent(scope: Scope, e: EventDoc, dates: string[]): Pro
     const { id: _id, layer: _layer, ...rest } = c as EventDoc & { id?: string; layer?: string };
     batch.set(doc(col), { ...rest, assignees: scope === 'personal' ? [uid] : rest.assignees, batchId, createdBy: uid, updatedAt: serverTimestamp() });
   }
-  await batch.commit();
+  fire(batch.commit());
 }

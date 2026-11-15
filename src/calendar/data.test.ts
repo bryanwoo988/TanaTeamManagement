@@ -3,18 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const batchSet = vi.fn();
 const batchCommit = vi.fn().mockResolvedValue(undefined);
 const writeBatch = vi.fn(() => ({ set: batchSet, commit: batchCommit }));
-const addDoc = vi.fn().mockResolvedValue({ id: 'new1' });
+const setDoc = vi.fn().mockResolvedValue(undefined);
+const onSnapshot = vi.fn();
 const updateDoc = vi.fn().mockResolvedValue(undefined);
 const deleteDoc = vi.fn().mockResolvedValue(undefined);
-const getDocs = vi.fn();
 vi.mock('../firebase', () => ({ db: {}, auth: { currentUser: { uid: 'me' } } }));
 vi.mock('firebase/firestore', () => ({
   collection: (_d: unknown, ...p: string[]) => ({ path: p.join('/') }),
   doc: (c: unknown, ...p: string[]) => (p.length ? { path: [(c as { path?: string }).path, ...p].filter(Boolean).join('/') } : { path: `${(c as { path: string }).path}/auto` }),
   where: (f: string, op: string, v: string) => ({ f, op, v }),
   query: (c: { path: string }, ...w: unknown[]) => ({ path: c.path, w }),
-  getDocs: (...a: unknown[]) => getDocs(...a),
-  addDoc: (...a: unknown[]) => addDoc(...a),
+  onSnapshot: (...a: unknown[]) => onSnapshot(...a),
+  setDoc: (...a: unknown[]) => setDoc(...a),
   updateDoc: (...a: unknown[]) => updateDoc(...a),
   deleteDoc: (...a: unknown[]) => deleteDoc(...a),
   writeBatch: () => writeBatch(),
@@ -28,28 +28,32 @@ const base = { title: 'Spray', date: '2026-11-10', allDay: false, start: '09:00'
 beforeEach(() => vi.clearAllMocks());
 
 describe('calendar data', () => {
-  it('lists events of a team in a date range', async () => {
-    getDocs.mockResolvedValue({ docs: [{ id: 'e1', data: () => base }] });
-    const r = await listEvents({ teamId: 't1' }, '2026-11-01', '2026-11-30');
-    expect(getDocs.mock.calls[0][0].path).toBe('teams/t1/events');
-    expect(getDocs.mock.calls[0][0].w).toEqual([{ f: 'date', op: '>=', v: '2026-11-01' }, { f: 'date', op: '<=', v: '2026-11-30' }]);
-    expect(r).toEqual([{ ...base, id: 'e1' }]);
+  it('streams live events of a team in a date range and returns the unsubscribe', () => {
+    const unsub = vi.fn();
+    onSnapshot.mockReturnValue(unsub);
+    const got: unknown[] = [];
+    const r = listEvents({ teamId: 't1' }, '2026-11-01', '2026-11-30', (e) => got.push(e));
+    const q = onSnapshot.mock.calls[0][0];
+    expect(q.path).toBe('teams/t1/events');
+    expect(q.w).toEqual([{ f: 'date', op: '>=', v: '2026-11-01' }, { f: 'date', op: '<=', v: '2026-11-30' }]);
+    onSnapshot.mock.calls[0][1]({ docs: [{ id: 'e1', data: () => base }] });
+    expect(got).toEqual([[{ ...base, id: 'e1' }]]);
+    expect(r).toBe(unsub);
   });
 
-  it('personal scope reads users/{uid}/events', async () => {
-    getDocs.mockResolvedValue({ docs: [] });
-    await listEvents('personal', '2026-11-01', '2026-11-30');
-    expect(getDocs.mock.calls[0][0].path).toBe('users/me/events');
+  it('personal scope reads users/{uid}/events', () => {
+    listEvents('personal', '2026-11-01', '2026-11-30', () => {});
+    expect(onSnapshot.mock.calls[0][0].path).toBe('users/me/events');
   });
 
   it('creates with createdBy and a server timestamp', async () => {
     await saveEvent({ teamId: 't1' }, null, base);
-    expect(addDoc).toHaveBeenCalledWith({ path: 'teams/t1/events' }, { ...base, createdBy: 'me', updatedAt: 'TS' });
+    expect(setDoc).toHaveBeenCalledWith({ path: 'teams/t1/events/auto' }, { ...base, createdBy: 'me', updatedAt: 'TS' });
   });
 
   it('personal events always have assignees = [uid]', async () => {
     await saveEvent('personal', null, { ...base, assignees: ['x', 'y'] });
-    expect(addDoc.mock.calls[0][1].assignees).toEqual(['me']);
+    expect(setDoc.mock.calls[0][1].assignees).toEqual(['me']);
   });
 
   it('updates with a server timestamp and drops times for all-day events', async () => {
@@ -78,6 +82,16 @@ describe('calendar data', () => {
     expect(id).not.toBe('oldb');
     expect(id.length).toBeLessThanOrEqual(40);
     for (const d of docs) expect(d).toMatchObject({ createdBy: 'me', updatedAt: 'TS', title: 'Spray' });
+  });
+
+  it('does not wait for the server: writes resolve while the ack is still pending (offline)', async () => {
+    const never = new Promise<void>(() => {});
+    setDoc.mockReturnValueOnce(never); updateDoc.mockReturnValueOnce(never); deleteDoc.mockReturnValueOnce(never); batchCommit.mockReturnValueOnce(never);
+    await saveEvent({ teamId: 't1' }, null, base);
+    await saveEvent({ teamId: 't1' }, 'e1', base);
+    await deleteEvent('personal', 'e9');
+    await copyEvent('personal', { ...base, createdBy: 'me', updatedAt: 'x' as never }, ['2026-11-11']);
+    expect(batchCommit).toHaveBeenCalledTimes(1);
   });
 
   it('rejects more than 60 dates', async () => {

@@ -12,7 +12,7 @@ export interface Person { uid: string; name: string }
 const scopeOf = (layer: string): Scope => (layer === 'personal' ? 'personal' : { teamId: layer });
 
 /** Create, edit (or just view) one event. Rules: admins pick assignees; members are locked to themselves. */
-export default function EventEditor({ event, date, layers, initialLayer, members, uid, readOnly, onClose, onCopy, onChanged }: {
+export default function EventEditor({ event, date, layers, initialLayer, members, uid, readOnly, onClose, onCopy }: {
   event: CalEvent | null;
   date: string;
   /** Calendars the user may create events in (editing an existing event uses its own layer). */
@@ -23,7 +23,6 @@ export default function EventEditor({ event, date, layers, initialLayer, members
   readOnly: boolean;
   onClose: () => void;
   onCopy: (e: CalEvent) => void;
-  onChanged?: () => void;
 }) {
   const { t } = useT();
   const [layer, setLayer] = useState(event?.layer ?? initialLayer);
@@ -58,7 +57,6 @@ export default function EventEditor({ event, date, layers, initialLayer, members
       });
     } catch (e) { toastError(); throw e; }
     toast({ kind: 'ok', title: t('cal.saved') });
-    onChanged?.();
     onClose();
   }
 
@@ -67,7 +65,6 @@ export default function EventEditor({ event, date, layers, initialLayer, members
     if (!(await confirmSheet({ title: t('cal.deleteTitle'), body: event.title, confirmLabel: t('delete'), danger: true }))) throw new Error('cancelled');
     try { await deleteEvent(scopeOf(event.layer), event.id); } catch (e) { toastError(); throw e; }
     toast({ kind: 'ok', title: t('cal.deleted') });
-    onChanged?.();
     onClose();
   }
 
