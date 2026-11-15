@@ -27,7 +27,7 @@ vi.mock('firebase/storage', () => ({
   getDownloadURL: (...a: unknown[]) => getDownloadURL(...a),
 }));
 
-import { deleteInvoice, listEventsAround, listInvoices, photoUrl, resubmitClaim, saveCategories, saveInvoice, setClaimStatus, type InvoiceInput } from './data';
+import { deleteInvoice, fetchInvoices, listEventsAround, listInvoices, photoUrl, resubmitClaim, saveCategories, saveInvoice, setClaimStatus, type InvoiceInput } from './data';
 
 const input: InvoiceInput = { kind: 'claim', amountSen: 1250, date: '2026-11-10', vendor: 'Ah Seng', category: 'Fuel', notes: '', relatedUids: [], uploaderName: 'Me' };
 const photo = new Blob(['x'], { type: 'image/jpeg' });
@@ -226,5 +226,22 @@ describe('related work and photo url', () => {
   it('photoUrl resolves the stored path', async () => {
     expect(await photoUrl('teams/t1/invoices/i1/p.jpg')).toBe('https://img/x.jpg');
     expect(getDownloadURL.mock.calls[0][0].fullPath).toBe('teams/t1/invoices/i1/p.jpg');
+  });
+});
+
+describe('fetchInvoices (one-shot export read)', () => {
+  const snap = (...rows: [string, object][]) => ({ docs: rows.map(([id, d]) => ({ id, data: () => d })) });
+  it('members read only their own two queries, merged, de-duplicated, filtered and newest first', async () => {
+    getDocs.mockResolvedValueOnce(snap(['a', { date: '2026-11-02', kind: 'claim' }], ['b', { date: '2026-11-09', kind: 'claim' }]))
+      .mockResolvedValueOnce(snap(['b', { date: '2026-11-09', kind: 'claim' }], ['c', { date: '2026-11-05', kind: 'company' }]));
+    const rows = await fetchInvoices('t1', { kind: 'claim' }, { uid: 'me', all: false });
+    expect(rows.map((r) => r.id)).toEqual(['b', 'a']);
+    expect(getDocs.mock.calls.map((c) => (c[0] as { w: { f: string }[] }).w[0].f)).toEqual(['uploadedBy', 'relatedUids']);
+  });
+  it('finance reads the whole collection once', async () => {
+    getDocs.mockResolvedValueOnce(snap(['a', { date: '2026-11-02', kind: 'claim' }]));
+    await fetchInvoices('t1', {}, { uid: 'me', all: true });
+    expect(getDocs).toHaveBeenCalledTimes(1);
+    expect(getDocs.mock.calls[0][0]).toEqual({ path: 'teams/t1/invoices' });
   });
 });

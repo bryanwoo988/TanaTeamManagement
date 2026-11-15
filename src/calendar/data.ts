@@ -1,7 +1,7 @@
-import { collection, deleteDoc, deleteField, doc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where, writeBatch, type Unsubscribe } from 'firebase/firestore';
+import { collection, deleteDoc, deleteField, doc, getDocs, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where, writeBatch, type Unsubscribe } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { copyEventToDates } from '../../shared/copyDates';
-import type { EventDoc } from '../../shared/types';
+import type { EventDoc, MemberDoc } from '../../shared/types';
 import { toastError } from '../ui/toast';
 
 /** A team's shared calendar, or the signed-in user's personal one. */
@@ -23,13 +23,26 @@ const eventsRef = (scope: Scope, uid: string) =>
 const eventRef = (scope: Scope, uid: string, id: string) =>
   scope === 'personal' ? doc(db, 'users', uid, 'events', id) : doc(db, 'teams', scope.teamId, 'events', id);
 
+const eventsInRange = (scope: Scope, from: string, to: string) =>
+  query(eventsRef(scope, uidOf()), where('date', '>=', from), where('date', '<=', to));
+
+/** One-time read of the same range listEvents watches (for export). */
+export async function fetchEvents(scope: Scope, from: string, to: string): Promise<(EventDoc & { id: string })[]> {
+  return (await getDocs(eventsInRange(scope, from, to))).docs.map((d) => ({ ...(d.data() as EventDoc), id: d.id }));
+}
+
+/** One-time read of a team's active members (to turn assignee ids into names). */
+export async function fetchMembers(teamId: string): Promise<Pick<MemberDoc, 'uid' | 'name'>[]> {
+  return (await getDocs(collection(db, 'teams', teamId, 'members'))).docs
+    .map((d) => ({ ...(d.data() as MemberDoc), uid: d.id })).filter((m) => m.status === 'active').map((m) => ({ uid: m.uid, name: m.name }));
+}
+
 /**
  * Live events with from <= date <= to (YYYY-MM-DD, inclusive). Calls onChange on every snapshot
  * (including pending local writes); returns the unsubscribe function.
  */
 export function listEvents(scope: Scope, from: string, to: string, onChange: (events: (EventDoc & { id: string })[]) => void, onError?: (e: unknown) => void): Unsubscribe {
-  const q = query(eventsRef(scope, uidOf()), where('date', '>=', from), where('date', '<=', to));
-  return onSnapshot(q, (snap) => onChange(snap.docs.map((d) => ({ ...(d.data() as EventDoc), id: d.id }))), (e) => onError?.(e));
+  return onSnapshot(eventsInRange(scope, from, to), (snap) => onChange(snap.docs.map((d) => ({ ...(d.data() as EventDoc), id: d.id }))), (e) => onError?.(e));
 }
 
 /** Writes resolve only on server ack, which never comes offline: start them, report a late failure, don't wait. */

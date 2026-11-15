@@ -212,6 +212,16 @@ export const zh = {
   'inv.dateRequired': '请选择日期。',
   'inv.relatedMax': '最多只能选 {n} 人。',
   'inv.loadError': '加载失败，请检查网络后重试。',
+  'export.title': '导出',
+  'export.link': '导出',
+  'export.what': '导出内容',
+  'export.format': '格式',
+  'export.go': '导出',
+  'export.working': '正在生成…',
+  'export.shared': '已分享',
+  'export.saved': '文件已保存',
+  'export.empty': '这个时间段没有可导出的内容。',
+  'export.failed': '导出失败，请检查网络后重试。',
 } as const;
 
 export type MessageKey = keyof typeof zh;

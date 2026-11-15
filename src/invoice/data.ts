@@ -46,25 +46,36 @@ function newId(): string {
 
 const invoicesRef = (teamId: string) => collection(db, 'teams', teamId, 'invoices');
 
+/** The queries that together cover exactly what the viewer may read (rules require these constraints for non-finance). */
+const viewerQueries = (teamId: string, me: Viewer) => me.all
+  ? [invoicesRef(teamId)]
+  : [query(invoicesRef(teamId), where('uploadedBy', '==', me.uid)), query(invoicesRef(teamId), where('relatedUids', 'array-contains', me.uid))];
+
+const finish = (parts: Map<string, InvoiceRow>[], filters: InvoiceFilters): InvoiceRow[] => {
+  const merged = new Map<string, InvoiceRow>();
+  for (const m of parts) for (const [id, r] of m) merged.set(id, r);
+  return applyInvoiceFilters([...merged.values()], filters).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+};
+
+const toMap = (docs: { id: string; data(): unknown }[]) => new Map<string, InvoiceRow>(docs.map((d) => [d.id, { ...(d.data() as InvoiceDoc), id: d.id }]));
+
 /** Live invoices the viewer may see, newest first; filters apply on the client (the sets are small). */
 export function listInvoices(teamId: string, filters: InvoiceFilters, me: Viewer, onChange: (rows: InvoiceRow[]) => void, onError?: (e: unknown) => void): Unsubscribe {
   const parts: Map<string, InvoiceRow>[] = [];
-  const emit = () => {
-    const merged = new Map<string, InvoiceRow>();
-    for (const m of parts) for (const [id, r] of m) merged.set(id, r);
-    onChange(applyInvoiceFilters([...merged.values()], filters).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)));
-  };
-  const queries = me.all
-    ? [invoicesRef(teamId)]
-    : [query(invoicesRef(teamId), where('uploadedBy', '==', me.uid)), query(invoicesRef(teamId), where('relatedUids', 'array-contains', me.uid))];
-  const unsubs = queries.map((q, i) => {
+  const unsubs = viewerQueries(teamId, me).map((q, i) => {
     parts[i] = new Map();
     return onSnapshot(q, (snap) => {
-      parts[i] = new Map(snap.docs.map((d) => [d.id, { ...(d.data() as InvoiceDoc), id: d.id }]));
-      emit();
+      parts[i] = toMap(snap.docs);
+      onChange(finish(parts, filters));
     }, (e) => onError?.(e));
   });
   return () => unsubs.forEach((u) => u());
+}
+
+/** One-time read of what listInvoices would show (for export): same queries, so members get only what they may read. */
+export async function fetchInvoices(teamId: string, filters: InvoiceFilters, me: Viewer): Promise<InvoiceRow[]> {
+  const snaps = await Promise.all(viewerQueries(teamId, me).map((q) => getDocs(q)));
+  return finish(snaps.map((s) => toMap(s.docs)), filters);
 }
 
 /** Live single invoice; `null` when it does not exist or may not be read. `pending` = our own write is not yet on the server. */

@@ -46,6 +46,7 @@ export default function InvoicesPage() {
         <p><Link to="/">{t('back')}</Link></p>
         <h1>{t('inv.title')}</h1>
         <button type="button" className="btn primary block" onClick={() => setCreating(true)}>{t('inv.new')}</button>
+        {finance && <Link to={`/team/${teamId}/export`}>{t('export.link')}</Link>}
         {me?.role === 'admin' && <Link to={`/team/${teamId}/invoices/categories`}>{t('inv.categories')}</Link>}
 
         <section className="card stack">

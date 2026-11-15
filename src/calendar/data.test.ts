@@ -5,6 +5,7 @@ const batchCommit = vi.fn().mockResolvedValue(undefined);
 const writeBatch = vi.fn(() => ({ set: batchSet, commit: batchCommit }));
 const setDoc = vi.fn().mockResolvedValue(undefined);
 const onSnapshot = vi.fn();
+const getDocs = vi.fn();
 const updateDoc = vi.fn().mockResolvedValue(undefined);
 const deleteDoc = vi.fn().mockResolvedValue(undefined);
 vi.mock('../firebase', () => ({ db: {}, auth: { currentUser: { uid: 'me' } } }));
@@ -14,6 +15,7 @@ vi.mock('firebase/firestore', () => ({
   where: (f: string, op: string, v: string) => ({ f, op, v }),
   query: (c: { path: string }, ...w: unknown[]) => ({ path: c.path, w }),
   onSnapshot: (...a: unknown[]) => onSnapshot(...a),
+  getDocs: (...a: unknown[]) => getDocs(...a),
   setDoc: (...a: unknown[]) => setDoc(...a),
   updateDoc: (...a: unknown[]) => updateDoc(...a),
   deleteDoc: (...a: unknown[]) => deleteDoc(...a),
@@ -98,5 +100,15 @@ describe('calendar data', () => {
     const dates = Array.from({ length: 61 }, (_, i) => `2027-01-${String(i + 1).padStart(2, '0')}`);
     await expect(copyEvent('personal', { ...base, createdBy: 'me', updatedAt: 'x' as never }, dates)).rejects.toThrow('tooManyDates');
     expect(batchCommit).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchEvents / fetchMembers (one-shot export reads)', () => {
+  it('reads the same range query once', async () => {
+    const { fetchEvents } = await import('./data');
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 'e1', data: () => ({ title: 'A', date: '2026-11-02' }) }] });
+    const rows = await fetchEvents({ teamId: 't1' }, '2026-11-01', '2026-11-30');
+    expect(rows).toEqual([{ title: 'A', date: '2026-11-02', id: 'e1' }]);
+    expect(getDocs.mock.calls[0][0]).toEqual({ path: 'teams/t1/events', w: [{ f: 'date', op: '>=', v: '2026-11-01' }, { f: 'date', op: '<=', v: '2026-11-30' }] });
   });
 });

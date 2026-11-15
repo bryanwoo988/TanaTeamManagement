@@ -131,7 +131,7 @@ export default function CalendarPage() {
 
   return (
     <>
-      <header className="topbar"><TeamSwitcher />{current !== 'personal' && <Link to={`/team/${current}/invoices`}>{t('inv.title')}</Link>}<Bell /></header>
+      <header className="topbar"><TeamSwitcher />{current !== 'personal' && <Link to={`/team/${current}/invoices`}>{t('inv.title')}</Link>}<Link to={current === 'personal' ? '/export' : `/team/${current}/export`}>{t('export.link')}</Link><Bell /></header>
       <main className="stack" aria-hidden={overlay || undefined}>
         <h1>{t('cal.title')}</h1>
         <div className="chips" role="group" aria-label={t('cal.layers')}>
