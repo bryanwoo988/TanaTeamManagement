@@ -45,6 +45,13 @@ jobs:
           for v in FIREBASE_API_KEY RECAPTCHA_KEY VAPID_PUBLIC_KEY VAPID_SUBJECT; do
             if [ -z "${!v}" ]; then echo "::error::Missing repository secret $v"; exit 1; fi
           done
+          # Format checks so a mistyped secret stops the deploy instead of shipping a broken site.
+          bad=0
+          [[ "$FIREBASE_API_KEY" =~ ^AIza[0-9A-Za-z_-]{35}$ ]] || { echo "::error::FIREBASE_API_KEY should be 39 characters starting with AIza (copy it from Firebase project settings)"; bad=1; }
+          [[ "$RECAPTCHA_KEY" =~ ^6L[0-9A-Za-z_-]{38}$ ]] || { echo "::error::RECAPTCHA_KEY should be 40 characters starting with 6L"; bad=1; }
+          [[ "$VAPID_PUBLIC_KEY" =~ ^B[0-9A-Za-z_-]{86}$ ]] || { echo "::error::VAPID_PUBLIC_KEY should be 87 characters starting with B (the Public Key, not the Private Key)"; bad=1; }
+          [[ "$VAPID_SUBJECT" =~ ^mailto:[^[:space:]]+@[^[:space:]]+$ ]] || { echo "::error::VAPID_SUBJECT should look like mailto:you@example.com"; bad=1; }
+          [ "$bad" = 0 ] || exit 1
           cat > .env.local <<CFG
           VITE_FIREBASE_API_KEY=${FIREBASE_API_KEY}
           VITE_FIREBASE_AUTH_DOMAIN=tana-team.firebaseapp.com
@@ -60,6 +67,16 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Check service account secret
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          node -e '
+            let j; try { j = JSON.parse(process.env.SA_JSON || ""); } catch { console.log("::error::FIREBASE_SERVICE_ACCOUNT is not valid JSON - paste the whole downloaded .json file"); process.exit(1); }
+            if (j.type !== "service_account" || j.project_id !== "tana-team" || !String(j.client_email).startsWith("tana-deployer@")) { console.log("::error::FIREBASE_SERVICE_ACCOUNT should be the JSON key of tana-deployer in project tana-team"); process.exit(1); }
+            console.log("service account secret looks right");
+          '
 
       - uses: google-github-actions/auth@v2
         with:
