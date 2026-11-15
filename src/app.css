@@ -186,7 +186,6 @@ h2.err { color: var(--err); }
 .ev-title { font-weight: 600; }
 .check { display: flex; align-items: center; gap: 8px; min-height: 44px; }
 /* ---------- notifications ---------- */
-.bell { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; }
 .bell-badge { position: absolute; top: 2px; right: 2px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 99px; background: var(--accent); color: var(--accent-fg); font-size: 0.7rem; font-weight: 700; line-height: 18px; text-align: center; }
 .notice { display: grid; gap: 4px; width: 100%; text-align: left; font: inherit; color: var(--fg); cursor: pointer; }
 .notice.unread { border-left: 4px solid var(--accent); }

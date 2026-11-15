@@ -6,7 +6,6 @@ import { canProcessClaims } from '../../shared/access';
 import { formatRM } from '../../shared/money';
 import type { ClaimStatus, InvoiceKind } from '../../shared/types';
 import { useTeams } from '../team/TeamContext';
-import Bell from '../notify/Bell';
 import TeamSwitcher from '../team/TeamSwitcher';
 import InvoiceEditor from './InvoiceEditor';
 import { applyInvoiceFilters } from './filters';
@@ -41,7 +40,7 @@ export default function InvoicesPage() {
 
   return (
     <>
-      <header className="topbar"><TeamSwitcher /><Bell /></header>
+      <header className="topbar"><TeamSwitcher /></header>
       <main className="stack" aria-hidden={creating || undefined}>
         <p><Link to="/">{t('back')}</Link></p>
         <h1>{t('inv.title')}</h1>

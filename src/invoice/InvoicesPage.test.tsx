@@ -10,7 +10,6 @@ vi.mock('./data', () => ({ listInvoices: (...a: unknown[]) => (listInvoices as (
 let role = 'member';
 vi.mock('../team/TeamContext', () => ({ useTeams: () => ({ member: () => ({ role, status: 'active' }) }) }));
 vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ user: { uid: 'me' }, profile: { name: 'Me' } }) }));
-vi.mock('../notify/Bell', () => ({ default: () => <div>bell</div> }));
 vi.mock('../team/TeamSwitcher', () => ({ default: () => <div>switcher</div> }));
 vi.mock('./useTeamInfo', () => ({ useTeamInfo: () => ({ categories: ['Fuel'], members: [{ uid: 'me', name: 'Me' }] }) }));
 vi.mock('./InvoiceEditor', () => ({ default: (p: { canProcess: boolean }) => <div>editor canProcess={String(p.canProcess)}</div> }));
@@ -24,6 +23,11 @@ const setup = () => render(<MemoryRouter initialEntries={['/team/t1/invoices']}>
 beforeEach(() => { vi.clearAllMocks(); setLang('en'); role = 'member'; });
 
 describe('InvoicesPage', () => {
+  it('top bar has no bell: notifications live in the bottom bar', () => {
+    setup();
+    expect(screen.queryByText('bell')).toBeNull();
+  });
+
   it('member subscribes as non-finance and sees only what the query returns', () => {
     setup();
     expect(listInvoices.mock.calls[0].slice(0, 3)).toEqual(['t1', {}, { uid: 'me', all: false }]);

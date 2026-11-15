@@ -23,7 +23,6 @@ vi.mock('../calendar/data', () => ({ listEvents: (...a: unknown[]) => listEvents
 const push = { state: 'off', enable: vi.fn().mockResolvedValue(undefined), disable: vi.fn().mockResolvedValue(undefined) };
 vi.mock('./push', async (orig) => ({ ...(await orig<typeof import('./push')>()), pushState: () => push.state, resolvePushState: async () => push.state, enablePush: (...a: unknown[]) => push.enable(...a), disablePush: (...a: unknown[]) => push.disable(...a) }));
 
-import Bell from './Bell';
 import NotificationsPage from './NotificationsPage';
 import PushBanner from './PushBanner';
 import NotifySettings from './NotifySettings';
@@ -35,21 +34,6 @@ const PATH = 'users/u1/notifications';
 function Where() { return <div data-testid="loc">{useLocation().pathname + useLocation().search}</div>; }
 
 beforeEach(() => { listeners.clear(); localStorage.clear(); setLang('en'); vi.clearAllMocks(); profile = { name: 'Me', notify: {}, digestTime: '20:00' }; teams = []; push.state = 'off'; listEvents.mockImplementation(() => () => {}); });
-
-describe('Bell', () => {
-  it('shows the unread count, capped at 9+', () => {
-    render(<MemoryRouter><Bell /></MemoryRouter>);
-    act(() => emit(PATH, Object.fromEntries([N('a', false), N('b', false), N('c', true)])));
-    expect(screen.getByRole('link', { name: 'Notifications (2 unread)' })).toHaveTextContent('2');
-    act(() => emit(PATH, Object.fromEntries(Array.from({ length: 12 }, (_, i) => N(`n${i}`, false)))));
-    expect(screen.getByRole('link', { name: /Notifications/ })).toHaveTextContent('9+');
-  });
-  it('shows no badge when everything is read', () => {
-    render(<MemoryRouter><Bell /></MemoryRouter>);
-    act(() => emit(PATH, Object.fromEntries([N('a', true)])));
-    expect(screen.getByRole('link', { name: 'Notifications' })).not.toHaveTextContent(/\d/);
-  });
-});
 
 describe('NotificationsPage', () => {
   function setup() {

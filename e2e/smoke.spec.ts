@@ -27,8 +27,8 @@ async function login(page: Page, local: string, name: string) {
   await expect(page.getByRole('heading', { name: 'Calendar' })).toBeVisible();
 }
 
-/** The bell in the top bar (the bottom nav carries the same count). */
-const bell = (page: Page) => page.locator('header.topbar a.bell');
+/** The notifications tab in the bottom nav, which carries the unread count. */
+const bell = (page: Page) => page.getByRole('navigation', { name: 'Main' }).locator('a[href="/notifications"]');
 
 async function pickTeam(page: Page, team: string) {
   await page.getByRole('button', { name: 'Switch team' }).first().click();

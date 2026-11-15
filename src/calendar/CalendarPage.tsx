@@ -6,7 +6,6 @@ import { db } from '../firebase';
 import { useAuth } from '../auth/AuthProvider';
 import { useTeams } from '../team/TeamContext';
 import TeamSwitcher from '../team/TeamSwitcher';
-import Bell from '../notify/Bell';
 import { useAppearance } from '../theme/appearance';
 import { THEMES } from '../theme/themes';
 import { useT } from '../i18n';
@@ -131,7 +130,8 @@ export default function CalendarPage() {
 
   return (
     <>
-      <header className="topbar"><TeamSwitcher />{current !== 'personal' && <Link to={`/team/${current}/invoices`}>{t('inv.title')}</Link>}<Link to={current === 'personal' ? '/export' : `/team/${current}/export`}>{t('export.link')}</Link><Bell /></header>
+      {/* Invoices and notifications are in the bottom bar; export stays here (the only way to Personal export). */}
+      <header className="topbar"><TeamSwitcher /><Link to={current === 'personal' ? '/export' : `/team/${current}/export`}>{t('export.link')}</Link></header>
       <main className="stack" aria-hidden={overlay || undefined}>
         <h1>{t('cal.title')}</h1>
         <div className="chips" role="group" aria-label={t('cal.layers')}>

@@ -27,7 +27,6 @@ vi.mock('../team/TeamContext', () => ({
     member: (id: string) => id === 't1' ? { role: 'member', status: 'active' } : undefined,
   }),
 }));
-vi.mock('../notify/Bell', () => ({ default: () => <div>bell</div> }));
 vi.mock('../team/TeamSwitcher', () => ({ default: () => <div>switcher</div> }));
 
 import CalendarPage from './CalendarPage';
@@ -53,6 +52,16 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('CalendarPage', () => {
+  it('top bar keeps the team switcher and export, leaving invoices and notifications to the bottom bar', async () => {
+    render(<MemoryRouter><CalendarPage /></MemoryRouter>);
+    await act(async () => {});
+    const bar = screen.getByRole('banner');
+    expect(within(bar).getByText('switcher')).toBeInTheDocument();
+    expect(within(bar).getByRole('link', { name: 'Export' })).toHaveAttribute('href', '/team/t1/export');
+    expect(within(bar).queryByRole('link', { name: 'Invoices' })).toBeNull();
+    expect(within(bar).queryByText('bell')).toBeNull();
+  });
+
   it('opens the day and layer named by a notification link', async () => {
     localStorage.setItem('calLayers', JSON.stringify(['t1']));
     render(<MemoryRouter initialEntries={['/?team=t1&date=2026-12-05']}><CalendarPage /></MemoryRouter>);
