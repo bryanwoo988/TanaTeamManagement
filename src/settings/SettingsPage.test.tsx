@@ -38,7 +38,7 @@ describe('SettingsPage', () => {
     expect(await screen.findByRole('link', { name: /Notifications.*On/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Appearance/ })).toHaveAttribute('href', '/settings/appearance');
     expect(screen.getByRole('link', { name: /Share this app/ })).toHaveAttribute('href', '/settings/share');
-    expect(screen.getByRole('link', { name: /About.*v1\.4\.0/ })).toHaveAttribute('href', '/settings/about');
+    expect(screen.getByRole('link', { name: /About.*v1\.4\.1/ })).toHaveAttribute('href', '/settings/about');
     expect(screen.getByRole('group', { name: 'Language' })).toBeInTheDocument();
     expect(screen.getByText('Version 1.4.1')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Leave team' })).toBeNull();
