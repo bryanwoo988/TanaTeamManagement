@@ -47,10 +47,12 @@ beforeEach(async () => {
   await seedUser('bob', 'Bob');
   await seedUser('carol', 'Carol');
   await seedUser('dave', 'Dave');
+  await seedUser('erin', 'Erin');
   await seedMember('alice', 'Alice', 'admin');
   await seedMember('bob', 'Bob', 'member');
   await seedMember('carol', 'Carol', 'finance');
   await seedMember('dave', 'Dave', 'member');
+  await seedMember('erin', 'Erin', 'member');
 });
 
 describe('event notifications', () => {
@@ -100,26 +102,27 @@ describe('event notifications', () => {
     expect(await notes('bob', 'changed', ref.id)).toHaveLength(0);
   });
 
-  it('no changed/cancelled for events in the past', async () => {
+  it('no changed/cancelled about the past, but a move into the future notifies', async () => {
     const past = addDays(TODAY, -2);
     const old = await db.collection(`teams/${T}/events`).add(ev({ date: past, assignees: ['bob', 'dave'] }));
     await waitNotes('bob', 'assigned', 1, old.id);
-    await old.update({ start: '09:00' });
-    await old.update({ assignees: ['bob'] });
-    await old.delete();
-    // Moving a past event to the future is also skipped (its 'before' is past).
+    await old.update({ start: '09:00' });              // after date past: no 'changed'
+    await old.update({ assignees: ['bob', 'erin'] });  // before date past: dave no cancel; after past: erin no 'assigned'
+    await old.delete();                                 // before date past: no cancel
+    const toPast = await db.collection(`teams/${T}/events`).add(ev({ assignees: ['carol'] }));
+    await waitNotes('carol', 'assigned', 1, toPast.id);
+    await toPast.update({ date: past });                // future -> past: no 'changed'
+    // Written last, so it doubles as the sentinel: past -> future does send 'changed'.
     const moved = await db.collection(`teams/${T}/events`).add(ev({ date: past, assignees: ['carol'] }));
     await waitNotes('carol', 'assigned', 1, moved.id);
     await moved.update({ date: D0 });
-    // Sentinel: a future event's time change written after the others does notify.
-    const future = await db.collection(`teams/${T}/events`).add(ev({ assignees: ['carol'] }));
-    await waitNotes('carol', 'assigned', 1, future.id);
-    await future.update({ start: '09:00' });
-    expect(await waitNotes('carol', 'changed', 1, future.id)).toHaveLength(1);
-    expect(await notes('carol', 'changed', moved.id)).toHaveLength(0);
+    const [m] = await waitNotes('carol', 'changed', 1, moved.id);
+    expect(m.title).toBe('Work changed: Spray');
     await sleep(1500);
     expect(await notes('bob', 'changed', old.id)).toHaveLength(0);
     expect(await notes('dave', 'changed', old.id)).toHaveLength(0);
+    expect(await notes('erin', 'assigned', old.id)).toHaveLength(0);
+    expect(await notes('carol', 'changed', toPast.id)).toHaveLength(0);
   });
 
   it('update: added get assigned, remaining get changed on time change; delete sends cancelled', async () => {

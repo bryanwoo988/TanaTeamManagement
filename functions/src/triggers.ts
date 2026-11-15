@@ -68,7 +68,8 @@ async function notifyBatch(teamId: string, e: EventDoc): Promise<void> {
  * Shared-calendar notifications: 'assigned' to newly added assignees (not the editor); 'changed' to
  * assignees who stay on an event whose date/time moved; the cancelled variant of 'changed'
  * (vars.cancelled = 1, "Work cancelled") to assignees removed from an event or on a deleted event.
- * No 'changed' for an event whose date (before or after) is already past in KL time.
+ * Dates are KL time: on update, 'assigned'/'changed' are skipped when the new date is past; the cancelled
+ * variant (delete or removal) is skipped when the old date is past. A past event moved to the future notifies.
  * The editor of a create is createdBy; for update/delete it is the write's auth context (authId).
  * Doc ids are `${event.id}_${variant}` so a repeated delivery of the same event notifies once.
  */
@@ -94,10 +95,12 @@ export const onEventWrite = onDocumentWrittenWithAuthContext(
       return notifyUsers(before.assignees, { kind: 'changed', id: `${event.id}_cancelled`, ...(await base(before, { cancelled: 1 })) }, { exclude: actor });
     }
     if (!before || !after) return;
-    const past = before.date < today || after.date < today;
-    const added = after.assignees.filter((u) => !before.assignees.includes(u));
-    const removed = past ? [] : before.assignees.filter((u) => !after.assignees.includes(u));
-    const stayed = !past && timeChanged(before, after) ? after.assignees.filter((u) => before.assignees.includes(u)) : [];
+    // News about the event as it now stands needs a future date; a cancellation needs the old one to be.
+    const nowPast = after.date < today;
+    const wasPast = before.date < today;
+    const added = nowPast ? [] : after.assignees.filter((u) => !before.assignees.includes(u));
+    const removed = wasPast ? [] : before.assignees.filter((u) => !after.assignees.includes(u));
+    const stayed = !nowPast && timeChanged(before, after) ? after.assignees.filter((u) => before.assignees.includes(u)) : [];
     if (!added.length && !stayed.length && !removed.length) return;
     await Promise.all([
       added.length && notifyUsers(added, { kind: 'assigned', id: `${event.id}_assigned`, ...(await base(after)) }, { exclude: actor }),
