@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, getDocs, onSnapshot, query, setDoc, updateDoc, where, type Unsubscribe } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, setDoc, updateDoc, where, type Unsubscribe } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { auth, db, storage } from '../firebase';
 import { applyInvoiceFilters } from './filters';
@@ -151,4 +151,16 @@ export async function saveCategories(teamId: string, categories: string[]): Prom
 export async function listEventsAround(teamId: string, date: string): Promise<(EventDoc & { id: string })[]> {
   const q = query(collection(db, 'teams', teamId, 'events'), where('date', '>=', addDays(date, -30)), where('date', '<=', addDays(date, 30)));
   return (await getDocs(q)).docs.map((d) => ({ ...(d.data() as EventDoc), id: d.id }));
+}
+
+/** Title and date of the work an invoice is linked to; null when it was deleted or cannot be read. */
+export async function getLinkedEvent(teamId: string, eventId: string): Promise<{ title: string; date: string } | null> {
+  try {
+    const s = await getDoc(doc(db, 'teams', teamId, 'events', eventId));
+    if (!s.exists()) return null;
+    const e = s.data() as EventDoc;
+    return { title: e.title, date: e.date };
+  } catch {
+    return null;
+  }
 }

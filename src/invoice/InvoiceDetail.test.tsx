@@ -8,12 +8,14 @@ const photoUrl = vi.fn().mockResolvedValue('https://img/p.jpg');
 const setClaimStatus = vi.fn().mockResolvedValue(undefined);
 const resubmitClaim = vi.fn().mockResolvedValue(undefined);
 const deleteInvoice = vi.fn().mockResolvedValue(undefined);
+const getLinkedEvent = vi.fn().mockResolvedValue(null);
 vi.mock('./data', () => ({
   watchInvoice: (_t: string, _i: string, cb: (r: unknown, p?: boolean) => void) => { feed = cb; return () => {}; },
   photoUrl: (...a: unknown[]) => photoUrl(...a),
   setClaimStatus: (...a: unknown[]) => setClaimStatus(...a),
   resubmitClaim: (...a: unknown[]) => resubmitClaim(...a),
   deleteInvoice: (...a: unknown[]) => deleteInvoice(...a),
+  getLinkedEvent: (...a: unknown[]) => getLinkedEvent(...a),
 }));
 let role = 'member';
 vi.mock('../team/TeamContext', () => ({ useTeams: () => ({ member: () => ({ role, status: 'active' }) }) }));
@@ -47,6 +49,23 @@ describe('InvoiceDetail', () => {
     expect(photoUrl).not.toHaveBeenCalled();
     act(() => feed(inv({ photoPath: 'teams/t1/invoices/i1/new.jpg' }), false));
     expect(photoUrl).toHaveBeenCalledWith('teams/t1/invoices/i1/new.jpg');
+  });
+
+  it('shows the linked related work with its date', async () => {
+    getLinkedEvent.mockResolvedValue({ title: 'Spray Lot 5', date: '2026-11-09' });
+    setup(inv({ eventId: 'e1' }));
+    expect(await screen.findByText('Related work: Spray Lot 5 · 2026-11-09')).toBeInTheDocument();
+    expect(getLinkedEvent).toHaveBeenCalledWith('t1', 'e1');
+  });
+
+  it('hides related work when there is none, or it is gone or unreadable', async () => {
+    getLinkedEvent.mockResolvedValue(null);
+    setup(inv());
+    expect(getLinkedEvent).not.toHaveBeenCalled();
+    act(() => feed(inv({ eventId: 'gone' })));
+    await act(async () => {});
+    expect(getLinkedEvent).toHaveBeenCalledWith('t1', 'gone');
+    expect(screen.queryByText(/Related work/)).toBeNull();
   });
 
   it('a missing or unreadable invoice shows not-found', () => {

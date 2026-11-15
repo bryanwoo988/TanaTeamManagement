@@ -10,7 +10,7 @@ import AsyncButton from '../ui/AsyncButton';
 import { confirmSheet } from '../ui/confirm';
 import { toast, toastError } from '../ui/toast';
 import InvoiceEditor from './InvoiceEditor';
-import { deleteInvoice, photoUrl, resubmitClaim, setClaimStatus, watchInvoice, type InvoiceRow } from './data';
+import { deleteInvoice, getLinkedEvent, photoUrl, resubmitClaim, setClaimStatus, watchInvoice, type InvoiceRow } from './data';
 import { useTeamInfo } from './useTeamInfo';
 
 export default function InvoiceDetail() {
@@ -29,6 +29,7 @@ export default function InvoiceDetail() {
   const [paidDate, setPaidDate] = useState(() => klDate(new Date()));
   const [reason, setReason] = useState('');
   const [err, setErr] = useState<string | null>(null);
+  const [work, setWork] = useState<{ id: string; title: string; date: string } | null>(null);
 
   useEffect(() => watchInvoice(teamId, invoiceId, (r, p) => { setInv(r); setPending(p); }), [teamId, invoiceId]);
   const photoPath = inv?.photoPath;
@@ -39,6 +40,14 @@ export default function InvoiceDetail() {
     photoUrl(photoPath).then((u) => live && setUrl(u)).catch(() => {});
     return () => { live = false; };
   }, [photoPath, pending]);
+
+  const eventId = inv?.eventId;
+  useEffect(() => {
+    if (!eventId) return;
+    let live = true;
+    getLinkedEvent(teamId, eventId).then((e) => live && setWork(e && { id: eventId, ...e }));
+    return () => { live = false; };
+  }, [teamId, eventId]);
 
   if (inv === undefined) return <main className="boot" aria-busy="true"><p className="muted">{t('loading')}</p></main>;
   if (inv === null) return <main className="stack"><p><Link to={`/team/${teamId}/invoices`}>{t('back')}</Link></p><p className="muted">{t('inv.notFound')}</p></main>;
@@ -83,6 +92,7 @@ export default function InvoiceDetail() {
           {!claim && inv.relatedUids.length > 0 && (
             <p>{t('inv.relatedPeople')}: {inv.relatedUids.map((u) => names.get(u) ?? u).join(', ')}</p>
           )}
+          {work && work.id === inv.eventId && <p>{`${t('inv.linkedWork')}: ${work.title} · ${work.date}`}</p>}
           {url && <img className="photo-full" src={url} alt={t('inv.photo')} />}
         </section>
 

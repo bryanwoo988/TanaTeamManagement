@@ -172,6 +172,7 @@ export const ms: Record<MessageKey, string> = {
   'inv.category': 'Kategori',
   'inv.notes': 'Nota',
   'inv.relatedPeople': 'Orang berkaitan',
+  'inv.linkedWork': 'Kerja berkaitan',
   'inv.relatedWork': 'Kerja berkaitan (pilihan)',
   'inv.none': 'Tiada',
   'inv.photo': 'Gambar',

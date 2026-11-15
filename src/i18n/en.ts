@@ -172,6 +172,7 @@ export const en: Record<MessageKey, string> = {
   'inv.category': 'Category',
   'inv.notes': 'Notes',
   'inv.relatedPeople': 'Related people',
+  'inv.linkedWork': 'Related work',
   'inv.relatedWork': 'Related work (optional)',
   'inv.none': 'None',
   'inv.photo': 'Photo',

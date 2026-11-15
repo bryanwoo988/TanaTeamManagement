@@ -170,6 +170,7 @@ export const zh = {
   'inv.category': '类别',
   'inv.notes': '备注',
   'inv.relatedPeople': '相关人员',
+  'inv.linkedWork': '相关工作',
   'inv.relatedWork': '相关工作（可选）',
   'inv.none': '无',
   'inv.photo': '照片',

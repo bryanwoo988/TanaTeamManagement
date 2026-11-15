@@ -4,6 +4,7 @@ const setDoc = vi.fn().mockResolvedValue(undefined);
 const updateDoc = vi.fn().mockResolvedValue(undefined);
 const deleteDoc = vi.fn().mockResolvedValue(undefined);
 const getDocs = vi.fn();
+const getDoc = vi.fn();
 const onSnapshot = vi.fn();
 const uploadBytesResumable = vi.fn();
 const getDownloadURL = vi.fn().mockResolvedValue('https://img/x.jpg');
@@ -15,6 +16,7 @@ vi.mock('firebase/firestore', () => ({
   query: (c: { path: string }, ...w: unknown[]) => ({ path: c.path, w }),
   onSnapshot: (...a: unknown[]) => onSnapshot(...a),
   getDocs: (...a: unknown[]) => getDocs(...a),
+  getDoc: (...a: unknown[]) => getDoc(...a),
   setDoc: (...a: unknown[]) => setDoc(...a),
   updateDoc: (...a: unknown[]) => updateDoc(...a),
   deleteDoc: (...a: unknown[]) => deleteDoc(...a),
@@ -27,7 +29,7 @@ vi.mock('firebase/storage', () => ({
   getDownloadURL: (...a: unknown[]) => getDownloadURL(...a),
 }));
 
-import { deleteInvoice, fetchInvoices, listEventsAround, listInvoices, photoUrl, resubmitClaim, saveCategories, saveInvoice, setClaimStatus, type InvoiceInput } from './data';
+import { deleteInvoice, fetchInvoices, getLinkedEvent, listEventsAround, listInvoices, photoUrl, resubmitClaim, saveCategories, saveInvoice, setClaimStatus, type InvoiceInput } from './data';
 
 const input: InvoiceInput = { kind: 'claim', amountSen: 1250, date: '2026-11-10', vendor: 'Ah Seng', category: 'Fuel', notes: '', relatedUids: [], uploaderName: 'Me' };
 const photo = new Blob(['x'], { type: 'image/jpeg' });
@@ -221,6 +223,16 @@ describe('related work and photo url', () => {
     expect(q.path).toBe('teams/t1/events');
     expect(q.w).toEqual([{ f: 'date', op: '>=', v: '2026-10-16' }, { f: 'date', op: '<=', v: '2026-12-15' }]);
     expect(r).toEqual([{ id: 'e1', title: 'Spray', date: '2026-11-12' }]);
+  });
+
+  it('getLinkedEvent reads the team event, null when gone or unreadable', async () => {
+    getDoc.mockResolvedValueOnce({ exists: () => true, data: () => ({ title: 'Spray', date: '2026-11-12', assignees: [] }) });
+    expect(await getLinkedEvent('t1', 'e1')).toEqual({ title: 'Spray', date: '2026-11-12' });
+    expect(getDoc.mock.calls[0][0].path).toBe('teams/t1/events/e1');
+    getDoc.mockResolvedValueOnce({ exists: () => false });
+    expect(await getLinkedEvent('t1', 'e2')).toBeNull();
+    getDoc.mockRejectedValueOnce(new Error('permission-denied'));
+    expect(await getLinkedEvent('t1', 'e3')).toBeNull();
   });
 
   it('photoUrl resolves the stored path', async () => {
