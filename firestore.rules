@@ -1,2 +1,205 @@
 rules_version = '2';
-service cloud.firestore { match /databases/{d}/documents { match /{document=**} { allow read, write: if false; } } }
+// Spec §5 (roles) and §6.4 (invoices). Anything not matched below is denied:
+// inviteCodes, rateLimits, digestSent, notifyBatches and other backend collections.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------ helpers
+    function signedIn() { return request.auth != null; }
+    function isMe(uid) { return signedIn() && request.auth.uid == uid; }
+
+    function memberPath(teamId) {
+      return /databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid);
+    }
+    // Caller's member doc data. Only call after exists(memberPath(teamId)).
+    function member(teamId) { return get(memberPath(teamId)).data; }
+    function isActive(teamId) {
+      return signedIn() && exists(memberPath(teamId)) && member(teamId).status == 'active';
+    }
+    function role(teamId) { return member(teamId).role; }
+    function isAdmin(teamId) { return isActive(teamId) && role(teamId) == 'admin'; }
+    function isFinance(teamId) { return isActive(teamId) && role(teamId) in ['admin', 'finance']; }
+
+    function newData() { return request.resource.data; }
+    function onlyChanged(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+    function unchanged(field) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([field]);
+    }
+    function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+    function isDate(v) {
+      return v is string && v.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$');
+    }
+    function isTime(v) { return v is string && v.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$'); }
+    function optional(d, key, ok) { return !(key in d) || ok; }
+    // Rules have no list iteration: check each slot of a list capped at 20 entries.
+    function strAt(l, i) { return l.size() <= i || l[i] is string; }
+    function uidList(l) {
+      return l is list && l.size() <= 20
+        && strAt(l, 0) && strAt(l, 1) && strAt(l, 2) && strAt(l, 3) && strAt(l, 4)
+        && strAt(l, 5) && strAt(l, 6) && strAt(l, 7) && strAt(l, 8) && strAt(l, 9)
+        && strAt(l, 10) && strAt(l, 11) && strAt(l, 12) && strAt(l, 13) && strAt(l, 14)
+        && strAt(l, 15) && strAt(l, 16) && strAt(l, 17) && strAt(l, 18) && strAt(l, 19);
+    }
+
+    // ------------------------------------------------------------ users
+    function notifyOk(n) {
+      return n is map
+        && n.keys().hasOnly(['digest', 'assigned', 'changed', 'companyInvoice',
+                             'claimSubmitted', 'claimDone', 'joinRequest', 'joined'])
+        && n.get('digest', true) is bool && n.get('assigned', true) == true
+        && n.get('changed', true) == true && n.get('companyInvoice', true) is bool
+        && n.get('claimSubmitted', true) is bool && n.get('claimDone', true) is bool
+        && n.get('joinRequest', true) is bool && n.get('joined', true) is bool;
+    }
+    function profileOk(d) {
+      return str(d.name, 1, 80) && d.lang in ['zh', 'en', 'ms']
+        && notifyOk(d.notify) && isTime(d.digestTime);
+    }
+
+    // Shared by team and personal events (assignee rules live in the team match).
+    function eventOk(d) {
+      return d.keys().hasAll(['title', 'date', 'allDay', 'assignees', 'place', 'notes', 'createdBy', 'updatedAt'])
+        && d.keys().hasOnly(['title', 'date', 'allDay', 'start', 'end', 'assignees', 'place', 'notes',
+                             'createdBy', 'updatedAt', 'batchId'])
+        && str(d.title, 1, 120) && isDate(d.date) && d.allDay is bool
+        && optional(d, 'start', isTime(d.get('start', ''))) && optional(d, 'end', isTime(d.get('end', '')))
+        && uidList(d.assignees) && str(d.place, 0, 200) && str(d.notes, 0, 2000)
+        && d.createdBy is string && optional(d, 'batchId', str(d.get('batchId', ''), 1, 40))
+        && d.updatedAt == request.time;
+    }
+    function eventCreateOk() { return eventOk(newData()) && newData().createdBy == request.auth.uid; }
+    function eventUpdateOk() { return eventOk(newData()) && unchanged('createdBy'); }
+
+    match /users/{uid} {
+      allow read: if isMe(uid);
+      allow create: if isMe(uid)
+        && newData().keys().hasAll(['name', 'phone', 'lang', 'notify', 'digestTime', 'createdAt'])
+        && newData().keys().hasOnly(['name', 'phone', 'lang', 'notify', 'digestTime', 'createdAt'])
+        && request.auth.token.phone_number is string
+        && newData().phone == request.auth.token.phone_number
+        && newData().createdAt == request.time
+        && profileOk(newData());
+      allow update: if isMe(uid) && onlyChanged(['name', 'lang', 'notify', 'digestTime']) && profileOk(newData());
+
+      match /events/{id} {
+        allow read, delete: if isMe(uid);
+        allow create: if isMe(uid) && eventCreateOk();
+        allow update: if isMe(uid) && eventUpdateOk();
+      }
+      match /pushSubs/{id} {
+        allow read, write: if isMe(uid);
+      }
+      match /notifications/{id} {
+        allow read: if isMe(uid);
+        allow update: if isMe(uid) && onlyChanged(['read']) && newData().read is bool;
+      }
+      match /teams/{teamId} {
+        allow read: if isMe(uid); // written by functions only
+      }
+    }
+
+    // ------------------------------------------------------------ teams
+    match /teams/{teamId} {
+      allow read: if isActive(teamId);
+      allow update: if isAdmin(teamId) && onlyChanged(['name', 'categories'])
+        && str(newData().name, 1, 60) && newData().categories is list && newData().categories.size() <= 50;
+
+      // Last-admin safety: no one may update or delete their own member doc, and only
+      // admins act on others, so the acting admin always remains. Leaving goes via leaveTeam().
+      match /members/{memberUid} {
+        allow read: if isActive(teamId) || isMe(memberUid);
+        allow update: if isAdmin(teamId) && !isMe(memberUid)
+          && onlyChanged(['role', 'status'])
+          && newData().role in ['admin', 'finance', 'member']
+          && (newData().status == resource.data.status || newData().status == 'active');
+        allow delete: if isAdmin(teamId) && !isMe(memberUid);
+      }
+
+      match /events/{eventId} {
+        allow read: if isActive(teamId);
+        allow create: if isActive(teamId) && eventCreateOk()
+          && (isAdmin(teamId) || newData().assignees == [request.auth.uid]);
+        allow update: if isActive(teamId) && eventUpdateOk()
+          && (isAdmin(teamId) || (request.auth.uid in resource.data.assignees && unchanged('assignees')));
+        allow delete: if isActive(teamId)
+          && (isAdmin(teamId) || request.auth.uid in resource.data.assignees);
+      }
+
+      match /invoices/{invoiceId} {
+        function photoPathOk(p) {
+          return p is string && p.split('/').size() == 5
+            && p.split('/')[0] == 'teams' && p.split('/')[1] == teamId
+            && p.split('/')[2] == 'invoices' && p.split('/')[3] == invoiceId
+            && p.split('/')[4].size() > 0;
+        }
+        function invoiceOk(d) {
+          return d.keys().hasAll(['kind', 'amountSen', 'date', 'vendor', 'category', 'notes', 'photoPath',
+                                  'uploadedBy', 'uploaderName', 'relatedUids', 'createdAt', 'updatedAt'])
+            && d.keys().hasOnly(['kind', 'amountSen', 'date', 'vendor', 'category', 'notes', 'photoPath',
+                                 'uploadedBy', 'uploaderName', 'relatedUids', 'eventId',
+                                 'status', 'paidDate', 'rejectReason', 'createdAt', 'updatedAt'])
+            && d.kind in ['claim', 'company']
+            && d.amountSen is int && d.amountSen >= 1 && d.amountSen <= 100000000
+            && isDate(d.date) && str(d.vendor, 0, 120) && str(d.category, 0, 60) && str(d.notes, 0, 1000)
+            && photoPathOk(d.photoPath) && str(d.uploaderName, 1, 80) && uidList(d.relatedUids)
+            && optional(d, 'eventId', str(d.get('eventId', ''), 1, 128))
+            && d.updatedAt == request.time;
+        }
+        function canRead(d) {
+          return isActive(teamId)
+            && (isFinance(teamId) || d.uploadedBy == request.auth.uid || request.auth.uid in d.relatedUids);
+        }
+        function isOwnClaim() {
+          return resource.data.kind == 'claim' && resource.data.uploadedBy == request.auth.uid;
+        }
+        // Owner edits while pending/rejected; status may only stay or go rejected -> pending;
+        // rejectReason may be kept or cleared, never written; paidDate never.
+        function ownerEditOk() {
+          return isOwnClaim() && resource.data.status in ['pending', 'rejected']
+            && invoiceOk(newData())
+            && unchanged('kind') && unchanged('uploadedBy') && unchanged('uploaderName')
+            && unchanged('createdAt') && unchanged('relatedUids')
+            && (newData().status == resource.data.status
+                || (resource.data.status == 'rejected' && newData().status == 'pending'))
+            && (unchanged('rejectReason') || !('rejectReason' in newData()))
+            && !('paidDate' in newData());
+        }
+        // Finance processing: only status/paidDate/rejectReason/updatedAt.
+        function processOk() {
+          return isFinance(teamId) && resource.data.kind == 'claim'
+            && onlyChanged(['status', 'paidDate', 'rejectReason', 'updatedAt'])
+            && newData().updatedAt == request.time
+            && ((newData().status == 'reimbursed' && !('rejectReason' in newData())
+                 && optional(newData(), 'paidDate', isDate(newData().get('paidDate', ''))))
+                || (newData().status == 'rejected' && !('paidDate' in newData())
+                    && newData().get('rejectReason', '') is string
+                    && newData().get('rejectReason', '').trim().size() > 0
+                    && newData().get('rejectReason', '').size() <= 300));
+        }
+        function companyEditOk() {
+          return isFinance(teamId) && resource.data.kind == 'company' && invoiceOk(newData())
+            && unchanged('kind') && unchanged('uploadedBy') && unchanged('createdAt')
+            && !newData().keys().hasAny(['status', 'paidDate', 'rejectReason']);
+        }
+
+        allow read: if canRead(resource.data);
+        allow create: if isActive(teamId) && invoiceOk(newData())
+          && newData().uploadedBy == request.auth.uid && newData().createdAt == request.time
+          && !newData().keys().hasAny(['paidDate', 'rejectReason'])
+          && ((newData().kind == 'claim' && newData().get('status', '') == 'pending' && newData().relatedUids == [])
+              || (newData().kind == 'company' && isFinance(teamId) && !('status' in newData())));
+        allow update: if isActive(teamId)
+          && (ownerEditOk() || processOk() || companyEditOk());
+        allow delete: if isFinance(teamId)
+          || (isActive(teamId) && isOwnClaim() && resource.data.status in ['pending', 'rejected']);
+      }
+    }
+
+    // ------------------------------------------------------------ backend-written
+    match /phoneInvites/{inviteId} {
+      allow read: if isAdmin(resource.data.teamId);
+    }
+  }
+}

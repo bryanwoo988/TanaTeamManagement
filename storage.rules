@@ -1,2 +1,31 @@
 rules_version = '2';
-service firebase.storage { match /b/{b}/o { match /{allPaths=**} { allow read, write: if false; } } }
+// Invoice photos follow the Firestore invoice they belong to (spec §7.2).
+// Deletion is never allowed from the client: the invoice-delete trigger removes photos.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function memberDoc(t) { return /databases/(default)/documents/teams/$(t)/members/$(request.auth.uid); }
+    function isActive(t) {
+      return request.auth != null && firestore.exists(memberDoc(t))
+        && firestore.get(memberDoc(t)).data.status == 'active';
+    }
+    function isFinance(t) {
+      return isActive(t) && firestore.get(memberDoc(t)).data.role in ['admin', 'finance'];
+    }
+
+    match /teams/{t}/invoices/{invoiceId}/{file} {
+      function invoicePath() { return /databases/(default)/documents/teams/$(t)/invoices/$(invoiceId); }
+      function invoice() { return firestore.get(invoicePath()).data; }
+
+      // Same logic as the Firestore invoice read rule.
+      allow read: if isActive(t) && firestore.exists(invoicePath())
+        && (isFinance(t) || invoice().uploadedBy == request.auth.uid || request.auth.uid in invoice().relatedUids);
+
+      // New files only (no overwrite). Into a new invoice's folder, or into an existing
+      // invoice the caller may edit (its uploader, or finance/admin).
+      allow create: if resource == null && isActive(t)
+        && request.resource.contentType == 'image/jpeg'
+        && request.resource.size < 2 * 1024 * 1024
+        && (!firestore.exists(invoicePath()) || isFinance(t) || invoice().uploadedBy == request.auth.uid);
+    }
+  }
+}
