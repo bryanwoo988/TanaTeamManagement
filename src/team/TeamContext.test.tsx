@@ -29,6 +29,28 @@ describe('TeamContext', () => {
     act(() => emit('users/u1/teams', { t1: { teamId: 't1', name: 'Farm', role: 'admin', status: 'active' } }));
     expect(screen.getByTestId('n')).toHaveTextContent('1');
     expect(screen.getByTestId('role')).toHaveTextContent('admin');
+  });
+
+  it('with no saved choice and exactly one active team, lands in that team', () => {
+    render(<TeamProvider><Probe /></TeamProvider>);
+    expect(screen.getByTestId('cur')).toHaveTextContent('personal'); // before the index loads
+    act(() => emit('users/u1/teams', { t1: { teamId: 't1', name: 'Farm', role: 'member', status: 'active' }, t2: { teamId: 't2', name: 'Other', role: 'member', status: 'pending' } }));
+    expect(screen.getByTestId('cur')).toHaveTextContent('t1');
+    expect(localStorage.getItem('team')).toBeNull();
+  });
+
+  it('with no saved choice and several active teams (or none), stays personal', () => {
+    render(<TeamProvider><Probe /></TeamProvider>);
+    act(() => emit('users/u1/teams', { t1: { teamId: 't1', name: 'Farm', role: 'member', status: 'active' }, t2: { teamId: 't2', name: 'Other', role: 'admin', status: 'active' } }));
+    expect(screen.getByTestId('cur')).toHaveTextContent('personal');
+    act(() => emit('users/u1/teams', { t2: { teamId: 't2', name: 'Other', role: 'member', status: 'pending' } }));
+    expect(screen.getByTestId('cur')).toHaveTextContent('personal');
+  });
+
+  it('an explicit choice of personal is respected even with one active team', () => {
+    localStorage.setItem('team', 'personal');
+    render(<TeamProvider><Probe /></TeamProvider>);
+    act(() => emit('users/u1/teams', { t1: { teamId: 't1', name: 'Farm', role: 'member', status: 'active' } }));
     expect(screen.getByTestId('cur')).toHaveTextContent('personal');
   });
 
