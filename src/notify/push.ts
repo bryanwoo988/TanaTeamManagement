@@ -1,30 +1,20 @@
-import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export type PushState = 'unsupported' | 'needs-home-screen' | 'denied' | 'off' | 'on';
-
-const FLAG = 'pushOn';
 
 const isIos = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
 const isStandalone = () =>
   (navigator as { standalone?: boolean }).standalone === true || !!globalThis.matchMedia?.('(display-mode: standalone)').matches;
 
-function flag(v?: boolean): boolean {
-  try {
-    if (v === true) localStorage.setItem(FLAG, '1');
-    else if (v === false) localStorage.removeItem(FLAG);
-    return localStorage.getItem(FLAG) === '1';
-  } catch { return false; }
-}
-
-/** Whether this device can and does receive push. 'on' means permission granted and we subscribed from this browser. */
+/** Synchronous device capability. Never 'on': whether this user is subscribed needs pushActive / resolvePushState. */
 export function pushState(): PushState {
   if (!import.meta.env.VITE_VAPID_PUBLIC_KEY) return 'unsupported';
   // iOS only exposes push to web apps added to the Home Screen.
   if (isIos() && !isStandalone()) return 'needs-home-screen';
   if (!('serviceWorker' in navigator) || typeof PushManager === 'undefined' || typeof Notification === 'undefined') return 'unsupported';
   if (Notification.permission === 'denied') return 'denied';
-  return Notification.permission === 'granted' && flag() ? 'on' : 'off';
+  return 'off';
 }
 
 function keyBytes(b64url: string): Uint8Array<ArrayBuffer> {
@@ -38,24 +28,47 @@ async function subId(endpoint: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 }
 
+/** True when this browser has a live subscription AND it is registered for this user. */
+export async function pushActive(uid: string): Promise<boolean> {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return false;
+    return (await getDoc(doc(db, 'users', uid, 'pushSubs', await subId(sub.endpoint)))).exists();
+  } catch { return false; }
+}
+
+/** pushState plus the live check: 'on' only for a subscription registered under this user. */
+export async function resolvePushState(uid: string): Promise<PushState> {
+  const s = pushState();
+  if (s !== 'off') return s;
+  return (await pushActive(uid)) ? 'on' : 'off';
+}
+
+/** Only same-origin paths ("/x", not "//host"). */
+export const isLocalPath = (u: unknown): u is string => typeof u === 'string' && u.startsWith('/') && !u.startsWith('//');
+
 /** Ask permission, subscribe and register this device's subscription. Rejects if permission is refused. */
 export async function enablePush(uid: string): Promise<void> {
   if (await Notification.requestPermission() !== 'granted') throw new Error('permission-denied');
   const reg = await navigator.serviceWorker.ready;
   const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(import.meta.env.VITE_VAPID_PUBLIC_KEY) });
   const json = sub.toJSON();
-  await setDoc(doc(db, 'users', uid, 'pushSubs', await subId(sub.endpoint)), {
-    endpoint: sub.endpoint, keys: { p256dh: json.keys?.p256dh ?? '', auth: json.keys?.auth ?? '' },
-    ua: navigator.userAgent, createdAt: serverTimestamp(),
-  });
-  flag(true);
+  try {
+    await setDoc(doc(db, 'users', uid, 'pushSubs', await subId(sub.endpoint)), {
+      endpoint: sub.endpoint, keys: { p256dh: json.keys?.p256dh ?? '', auth: json.keys?.auth ?? '' },
+      ua: navigator.userAgent, createdAt: serverTimestamp(),
+    });
+  } catch (e) {
+    await sub.unsubscribe().catch(() => {});
+    throw e;
+  }
 }
 
-/** Unsubscribe this device and remove its registration. */
+/** Remove this device's registration, then unsubscribe it. */
 export async function disablePush(uid: string): Promise<void> {
   const reg = await navigator.serviceWorker.ready;
   const sub = await reg.pushManager.getSubscription();
-  flag(false);
   if (!sub) return;
   await deleteDoc(doc(db, 'users', uid, 'pushSubs', await subId(sub.endpoint)));
   await sub.unsubscribe();

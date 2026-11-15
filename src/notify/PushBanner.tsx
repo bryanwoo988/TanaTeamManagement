@@ -7,10 +7,7 @@ import { klDate } from '../../shared/dates';
 import { useT } from '../i18n';
 import AsyncButton from '../ui/AsyncButton';
 import { toast } from '../ui/toast';
-import { enablePush, pushState, type PushState } from './push';
-
-const DISMISS_KEY = 'pushBannerDismissed';
-const readDismissed = () => { try { return localStorage.getItem(DISMISS_KEY) === '1'; } catch { return false; } };
+import { enablePush, pushState, resolvePushState, type PushState } from './push';
 
 /** Nudges people who would benefit from push (team members, or anyone with an upcoming job) to turn it on. */
 export default function PushBanner() {
@@ -19,8 +16,15 @@ export default function PushBanner() {
   const uid = user?.uid ?? '';
   const { teams } = useTeams();
   const [state, setState] = useState<PushState>(pushState);
-  const [dismissed, setDismissed] = useState(readDismissed);
+  const [dismissed, setDismissed] = useState(false);
   const [assigned, setAssigned] = useState(false);
+
+  useEffect(() => {
+    if (!uid) return;
+    let live = true;
+    resolvePushState(uid).then((s) => { if (live) setState(s); });
+    return () => { live = false; };
+  }, [uid]);
 
   useEffect(() => {
     if (!uid || state === 'on') return;
@@ -34,12 +38,10 @@ export default function PushBanner() {
   if (!uid || state === 'on' || state === 'unsupported' || dismissed || !(member || assigned)) return null;
 
   async function enable() {
-    try { await enablePush(uid); } catch (e) { toast({ kind: 'err', title: t('notify.pushFailed') }); throw e; } finally { setState(pushState()); }
+    try { await enablePush(uid); } catch (e) { toast({ kind: 'err', title: t('notify.pushFailed') }); throw e; } finally { setState(await resolvePushState(uid)); }
   }
-  function dismiss() {
-    setDismissed(true);
-    try { localStorage.setItem(DISMISS_KEY, '1'); } catch { /* session only */ }
-  }
+  // Session-only: the banner comes back on the next app open while push is not on.
+  const dismiss = () => setDismissed(true);
 
   return (
     <section className="card push-banner" role="region" aria-label={t('notify.bell')}>

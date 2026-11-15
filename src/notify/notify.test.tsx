@@ -21,7 +21,7 @@ vi.mock('../team/TeamContext', () => ({ useTeams: () => ({ teams, current: 'pers
 const listEvents = vi.fn();
 vi.mock('../calendar/data', () => ({ listEvents: (...a: unknown[]) => listEvents(...a) }));
 const push = { state: 'off', enable: vi.fn().mockResolvedValue(undefined), disable: vi.fn().mockResolvedValue(undefined) };
-vi.mock('./push', () => ({ pushState: () => push.state, enablePush: (...a: unknown[]) => push.enable(...a), disablePush: (...a: unknown[]) => push.disable(...a) }));
+vi.mock('./push', async (orig) => ({ ...(await orig<typeof import('./push')>()), pushState: () => push.state, resolvePushState: async () => push.state, enablePush: (...a: unknown[]) => push.enable(...a), disablePush: (...a: unknown[]) => push.disable(...a) }));
 
 import Bell from './Bell';
 import NotificationsPage from './NotificationsPage';
@@ -83,10 +83,20 @@ describe('NotificationsPage', () => {
 });
 
 describe('PushBanner', () => {
-  it('is hidden when push is already on', () => {
+  it('is hidden when push is already on', async () => {
     push.state = 'on'; teams = [{ teamId: 'a', name: 'Farm', role: 'member', status: 'active' }];
     render(<PushBanner />);
+    await act(async () => {});
     expect(screen.queryByRole('region', { name: 'Notifications' })).toBeNull();
+  });
+  it('dismissal lasts only for the session: it returns after a remount', async () => {
+    teams = [{ teamId: 'a', name: 'Farm', role: 'member', status: 'active' }];
+    const { unmount } = render(<PushBanner />);
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(screen.queryByRole('button', { name: 'Turn on notifications' })).toBeNull();
+    unmount();
+    render(<PushBanner />);
+    expect(screen.getByRole('button', { name: 'Turn on notifications' })).toBeInTheDocument();
   });
   it('is shown to a team member who has not enabled push, and enabling calls enablePush', async () => {
     teams = [{ teamId: 'a', name: 'Farm', role: 'member', status: 'active' }];

@@ -14,14 +14,15 @@ self.addEventListener('push', (e) => {
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
     tag: d.tag || undefined,
-    data: { url: typeof d.url === 'string' && d.url.startsWith('/') ? d.url : '/', kind: d.kind ?? '' },
+    data: { url: typeof d.url === 'string' && d.url.startsWith('/') && !d.url.startsWith('//') ? d.url : '/', kind: d.kind ?? '' },
   }));
 });
 
 /* Tapping focuses an open window and sends it to the notification's url, else opens one. */
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-  const url: string = (e.notification.data && e.notification.data.url) || '/';
+  const raw: unknown = e.notification.data && e.notification.data.url;
+  const url = typeof raw === 'string' && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
   e.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const c of all) {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../auth/AuthProvider';
@@ -6,7 +6,7 @@ import { useT, type MessageKey } from '../i18n';
 import AsyncButton from '../ui/AsyncButton';
 import { toast, toastError } from '../ui/toast';
 import { MANDATORY_KINDS, type NotifyKind } from '../../shared/types';
-import { disablePush, enablePush, pushState, type PushState } from './push';
+import { disablePush, enablePush, pushState, resolvePushState, type PushState } from './push';
 
 const KINDS: NotifyKind[] = ['digest', 'assigned', 'changed', 'companyInvoice', 'claimSubmitted', 'claimDone', 'joinRequest', 'joined'];
 
@@ -15,13 +15,19 @@ export default function NotifySettings() {
   const { user, profile } = useAuth();
   const uid = user?.uid ?? '';
   const [state, setState] = useState<PushState>(pushState);
+  useEffect(() => {
+    if (!uid) return;
+    let live = true;
+    resolvePushState(uid).then((s) => { if (live) setState(s); });
+    return () => { live = false; };
+  }, [uid]);
   const userRef = () => doc(db, 'users', uid);
   const save = (data: Record<string, unknown>) => updateDoc(userRef(), data).catch(() => toastError());
 
   async function togglePush() {
     try {
       if (state === 'on') await disablePush(uid); else await enablePush(uid);
-    } catch (e) { toast({ kind: 'err', title: t('notify.pushFailed') }); throw e; } finally { setState(pushState()); }
+    } catch (e) { toast({ kind: 'err', title: t('notify.pushFailed') }); throw e; } finally { setState(await resolvePushState(uid)); }
   }
 
   return (

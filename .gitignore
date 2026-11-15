@@ -6,3 +6,4 @@ functions/lib/
 .env
 .env.local
 functions/.env
+*.tsbuildinfo

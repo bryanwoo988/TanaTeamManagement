@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { useT } from '../i18n';
 import AsyncButton from '../ui/AsyncButton';
 import { toastError } from '../ui/toast';
+import { isLocalPath } from './push';
 import { markAllRead, markRead, useNotifications, type Notice } from './notifications';
 
 function when(n: Notice): string {
@@ -21,7 +22,7 @@ export default function NotificationsPage() {
 
   function open(n: Notice) {
     if (!n.read) markRead(uid, n.id).catch(() => toastError());
-    if (n.url.startsWith('/')) nav(n.url);
+    if (isLocalPath(n.url)) nav(n.url);
   }
 
   async function all() {

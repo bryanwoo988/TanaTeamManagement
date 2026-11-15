@@ -2,15 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const setDoc = vi.fn().mockResolvedValue(undefined);
 const deleteDoc = vi.fn().mockResolvedValue(undefined);
+const getDoc = vi.fn();
 vi.mock('../firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, ...p: string[]) => ({ path: p.join('/') }),
   setDoc: (...a: unknown[]) => setDoc(...a),
   deleteDoc: (...a: unknown[]) => deleteDoc(...a),
+  getDoc: (...a: unknown[]) => getDoc(...a),
   serverTimestamp: () => 'TS',
 }));
 
-import { disablePush, enablePush, pushState } from './push';
+import { disablePush, enablePush, isLocalPath, pushActive, pushState, resolvePushState } from './push';
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148';
 const ANDROID = 'Mozilla/5.0 (Linux; Android 14) Chrome/120 Mobile Safari/537.36';
@@ -23,7 +25,7 @@ function env(ua: string, o: { standalone?: boolean; permission?: string; push?: 
   vi.stubGlobal('Notification', { permission: o.permission ?? 'default', requestPermission: vi.fn().mockImplementation(async function () { (globalThis.Notification as { permission: string }).permission = 'granted'; return 'granted'; }) });
 }
 
-beforeEach(() => { localStorage.clear(); vi.stubEnv('VITE_VAPID_PUBLIC_KEY', 'BNc'); setDoc.mockClear(); deleteDoc.mockClear(); });
+beforeEach(() => { localStorage.clear(); getDoc.mockReset(); vi.stubEnv('VITE_VAPID_PUBLIC_KEY', 'BNc'); setDoc.mockClear(); deleteDoc.mockClear(); });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe('pushState', () => {
@@ -47,11 +49,37 @@ describe('pushState', () => {
     env(ANDROID, { permission: 'denied' });
     expect(pushState()).toBe('denied');
   });
-  it('on only when permission is granted and we subscribed', () => {
-    env(ANDROID, { permission: 'granted' });
-    expect(pushState()).toBe('off');
-    localStorage.setItem('pushOn', '1');
-    expect(pushState()).toBe('on');
+});
+
+function withSub(sub: unknown) {
+  (navigator as unknown as { serviceWorker: unknown }).serviceWorker = { ready: Promise.resolve({ pushManager: { getSubscription: vi.fn().mockResolvedValue(sub) } }) };
+}
+const SUB = { endpoint: 'https://push.example/abc' };
+
+describe('pushActive', () => {
+  beforeEach(() => env(ANDROID, { permission: 'granted' }));
+  it('true only when a subscription exists and is registered for this user', async () => {
+    withSub(SUB); getDoc.mockResolvedValue({ exists: () => true });
+    expect(await pushActive('u1')).toBe(true);
+    expect(getDoc.mock.calls[0][0].path).toMatch(/^users\/u1\/pushSubs\/[0-9a-f]{32}$/);
+    expect(await resolvePushState('u1')).toBe('on');
+  });
+  it('off when the browser has no subscription', async () => {
+    withSub(null);
+    expect(await pushActive('u1')).toBe(false);
+    expect(await resolvePushState('u1')).toBe('off');
+  });
+  it('off when the subscription is registered for another account', async () => {
+    withSub(SUB); getDoc.mockResolvedValue({ exists: () => false });
+    expect(await resolvePushState('u2')).toBe('off');
+  });
+});
+
+describe('isLocalPath', () => {
+  it('accepts single-slash paths only', () => {
+    expect(isLocalPath('/team/a')).toBe(true);
+    expect(isLocalPath('//evil.com')).toBe(false);
+    expect(isLocalPath('https://x')).toBe(false);
   });
 });
 
@@ -66,11 +94,17 @@ describe('enable / disable', () => {
     const [ref, data] = setDoc.mock.calls[0];
     expect(ref.path).toMatch(/^users\/u1\/pushSubs\/[0-9a-f]{32}$/);
     expect(data).toMatchObject({ endpoint: 'https://push.example/abc', keys: { p256dh: 'P', auth: 'A' }, createdAt: 'TS' });
-    expect(pushState()).toBe('on');
     await disablePush('u1');
     expect(deleteDoc.mock.calls[0][0].path).toBe(ref.path);
     expect(sub.unsubscribe).toHaveBeenCalled();
-    expect(pushState()).toBe('off');
+  });
+  it('unsubscribes again if registering fails', async () => {
+    env(ANDROID);
+    const sub = { endpoint: 'https://p/x', toJSON: () => ({ keys: {} }), unsubscribe: vi.fn().mockResolvedValue(true) };
+    (navigator as unknown as { serviceWorker: unknown }).serviceWorker = { ready: Promise.resolve({ pushManager: { subscribe: vi.fn().mockResolvedValue(sub) } }) };
+    setDoc.mockRejectedValueOnce(new Error('denied'));
+    await expect(enablePush('u1')).rejects.toThrow('denied');
+    expect(sub.unsubscribe).toHaveBeenCalled();
   });
   it('rejects when the user refuses permission', async () => {
     env(ANDROID);
