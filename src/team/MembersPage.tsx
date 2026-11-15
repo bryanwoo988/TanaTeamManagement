@@ -28,7 +28,8 @@ export default function MembersPage() {
   const { teamId = '' } = useParams();
   const { t } = useT();
   const { user } = useAuth();
-  const { member } = useTeams();
+  const { member, teams } = useTeams();
+  const teamName = teams?.find((x) => x.teamId === teamId)?.name ?? '';
   const me = member(teamId);
   const admin = isActive(me) && me?.role === 'admin';
   const [members, setMembers] = useState<(MemberDoc & { id: string })[]>([]);
@@ -86,6 +87,23 @@ export default function MembersPage() {
     try { setCode((await resetInviteCode(teamId)).code); } catch (e) { reportError(e); throw e; }
   }
 
+  const inviteUrl = code ? `${location.origin}/join/${code}` : '';
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+
+  async function copy(text: string) {
+    try { await navigator.clipboard.writeText(text); toast({ kind: 'ok', title: t('team.copied') }); }
+    catch { toastError(); }
+  }
+
+  async function share() {
+    if (!code) return;
+    try {
+      await navigator.share({ title: t('team.inviteShareTitle', { team: teamName }), text: t('team.inviteShareText', { team: teamName, code }), url: inviteUrl });
+    } catch (e) {
+      if ((e as { name?: string })?.name !== 'AbortError') toastError();
+    }
+  }
+
   const pending = admin ? members.filter((m) => m.status === 'pending') : [];
   const active = members.filter((m) => m.status === 'active');
 
@@ -98,6 +116,11 @@ export default function MembersPage() {
         <section className="card">
           <h2>{t('team.inviteCode')}</h2>
           <p><strong>{code ?? '…'}</strong></p>
+          <div className="row" style={{ flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+            <button type="button" className="btn" disabled={!code} onClick={() => copy(code!)}>{t('team.copyCode')}</button>
+            <button type="button" className="btn" disabled={!code} onClick={() => copy(inviteUrl)}>{t('team.copyLink')}</button>
+            {canShare && <button type="button" className="btn primary" disabled={!code} onClick={share}>{t('team.shareInvite')}</button>}
+          </div>
           <AsyncButton className="btn" onClick={async () => {
             if (!(await confirmSheet({ title: t('team.resetCode'), body: t('team.resetConfirm'), danger: true }))) throw new Error('cancelled');
             await reset();

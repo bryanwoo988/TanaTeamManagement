@@ -1,4 +1,5 @@
-import { Navigate, Outlet } from 'react-router';
+import { useEffect } from 'react';
+import { Navigate, Outlet, useMatch, useNavigate } from 'react-router';
 import { useAuth } from './auth/AuthProvider';
 import LoginPage from './auth/LoginPage';
 import ProfileSetup from './auth/ProfileSetup';
@@ -7,6 +8,8 @@ import FirstRunGate from './i18n/FirstRunGate';
 import { TeamProvider } from './team/TeamContext';
 import CalendarPage from './calendar/CalendarPage';
 import CreateJoinPage from './team/CreateJoinPage';
+import JoinPage, { PENDING_JOIN_KEY } from './team/JoinPage';
+import { normalizeInviteCode } from '../shared/inviteCode';
 import MembersPage from './team/MembersPage';
 import NotificationsPage from './notify/NotificationsPage';
 import InvoicesPage from './invoice/InvoicesPage';
@@ -29,6 +32,23 @@ import Toaster from './ui/Toaster';
 function Gate() {
   const { user, profile, loading, error, retry } = useAuth();
   const { t } = useT();
+  const nav = useNavigate();
+  const joinMatch = useMatch('/join/:code');
+  const joinCode = joinMatch?.params.code;
+  // Signed out on an invite link: remember the code so it survives sign-in (even if the page reloads).
+  useEffect(() => {
+    if (user || loading || joinCode === undefined) return;
+    const c = normalizeInviteCode(joinCode);
+    try { if (c) sessionStorage.setItem(PENDING_JOIN_KEY, c); } catch { /* ignore */ }
+  }, [user, loading, joinCode]);
+  // Signed in with a profile and a remembered code, but no longer on the link: pick it up.
+  const ready = !!user && !!profile && !error;
+  useEffect(() => {
+    if (!ready || joinCode !== undefined) return;
+    let c: string | null = null;
+    try { c = sessionStorage.getItem(PENDING_JOIN_KEY); } catch { /* ignore */ }
+    if (c) nav(`/join/${c}`, { replace: true });
+  }, [ready, joinCode, nav]);
   if (loading) return <main className="boot" aria-busy="true"><p className="muted">{t('loading')}</p></main>;
   if (!user) return <LoginPage />;
   if (error) {
@@ -67,6 +87,7 @@ export const routes = [
       { path: 'settings/share', element: <SharePage /> },
       { path: 'settings/about', element: <AboutPage /> },
       { path: 'teams/new', element: <CreateJoinPage /> },
+      { path: 'join/:code', element: <JoinPage /> },
       { path: 'export', element: <ExportPage /> },
       { path: 'team/:teamId/export', element: <ExportPage /> },
       { path: 'team/:teamId/members', element: <MembersPage /> },

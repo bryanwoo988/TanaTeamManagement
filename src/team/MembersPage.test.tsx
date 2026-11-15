@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { emit, listeners, updateDoc, deleteDoc } from './fsMock';
@@ -19,7 +19,7 @@ vi.mock('firebase/firestore', async () => (await import('./fsMock')).firestoreMo
 vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ user: { uid: 'me' } }) }));
 let myRole = 'admin';
 vi.mock('./TeamContext', () => ({
-  useTeams: () => ({ member: () => ({ uid: 'me', role: myRole, status: 'active' }) }),
+  useTeams: () => ({ teams: [{ teamId: 't1', name: 'Acme' }], member: () => ({ uid: 'me', role: myRole, status: 'active' }) }),
 }));
 const confirmSheet = vi.fn().mockResolvedValue(true);
 vi.mock('../ui/confirm', () => ({ confirmSheet: (...a: unknown[]) => confirmSheet(...a) }));
@@ -193,5 +193,41 @@ describe('MembersPage', () => {
     expect(screen.queryByRole('combobox')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
     expect(getInviteCode).not.toHaveBeenCalled();
+  });
+
+  describe('invite sharing', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    const share = vi.fn().mockResolvedValue(undefined);
+    beforeEach(() => {
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    });
+
+    it('copy code and copy link write the right strings', async () => {
+      setup();
+      await screen.findByText('CODE99');
+      fireEvent.click(screen.getByRole('button', { name: 'Copy code' }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('CODE99'));
+      fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${location.origin}/join/CODE99`));
+    });
+
+    it('share passes title, text with team and code, and the link', async () => {
+      setup();
+      await screen.findByText('CODE99');
+      fireEvent.click(screen.getByRole('button', { name: 'Share invite' }));
+      await waitFor(() => expect(share).toHaveBeenCalled());
+      const arg = share.mock.calls[0][0];
+      expect(arg.url).toBe(`${location.origin}/join/CODE99`);
+      expect(arg.text).toContain('Acme');
+      expect(arg.text).toContain('CODE99');
+    });
+
+    it('hides Share invite when the browser cannot share', async () => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
+      setup();
+      await screen.findByText('CODE99');
+      expect(screen.queryByRole('button', { name: 'Share invite' })).toBeNull();
+    });
   });
 });

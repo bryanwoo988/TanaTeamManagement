@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 /** Newest first. The newest entry's date is replaced by the real build time on the About page. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.5.0',
+    date: '2026-11-16 07:20',
+    items: {
+      zh: ['邀请码可以一键复制；分享邀请链接，同事点链接登录后自动申请加入团队'],
+      en: ['Copy the invite code in one tap; share an invite link, and colleagues who tap it and sign in automatically request to join the team'],
+      ms: ['Salin kod jemputan dengan satu ketik; kongsi pautan jemputan, rakan sekerja yang menekannya dan log masuk akan memohon menyertai pasukan secara automatik'],
+    },
+  },
+  {
     version: '1.4.3',
     date: '2026-11-16 07:05',
     items: {
