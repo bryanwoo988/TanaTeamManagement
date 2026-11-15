@@ -45,7 +45,7 @@ a { color: var(--accent); }
 .appearance-help { font-size: 0.95rem; margin: 12px 4px 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .appearance-sub { font-size: 1.15rem; font-weight: 500; margin: 14px 4px 10px; }
 .appearance-sub:not(:first-of-type) { padding-top: 14px; border-top: 1px solid var(--line); }
-.swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .swatch {
   -webkit-appearance: none; appearance: none; background: transparent; color: var(--fg); font: inherit;
   display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px; cursor: pointer;
@@ -59,6 +59,9 @@ a { color: var(--accent); }
 .swatch-label { font-size: 0.95rem; font-weight: 600; line-height: 1.2; text-align: center; }
 
 .stack { display: grid; gap: 10px; }
+/* Page gutter: 16px each side on phones; a top bar inside the page keeps its own padding. */
+main.stack { padding: 0 16px 16px; }
+main.stack > .topbar { margin: 0 -16px; }
 .small { font-size: 0.82rem; word-break: break-word; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .btn.block { width: 100%; }

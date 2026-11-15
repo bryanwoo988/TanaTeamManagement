@@ -7,3 +7,6 @@ functions/lib/
 .env.local
 functions/.env
 *.tsbuildinfo
+e2e/screenshots/
+test-results/
+playwright-report/

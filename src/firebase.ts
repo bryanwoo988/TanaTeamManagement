@@ -12,12 +12,14 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-ch
 
 const env = import.meta.env;
 const useEmulators = env.VITE_USE_EMULATORS === 'true';
+const projectId = env.VITE_FIREBASE_PROJECT_ID || 'demo-tana';
 
 export const app = initializeApp({
   apiKey: env.VITE_FIREBASE_API_KEY || 'demo-key',
   authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: env.VITE_FIREBASE_PROJECT_ID || 'demo-tana',
-  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || undefined,
+  projectId,
+  // The emulators need a bucket name too; theirs is the project's default `<project>.appspot.com`.
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || (useEmulators ? `${projectId}.appspot.com` : undefined),
   messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: env.VITE_FIREBASE_APP_ID,
 });
