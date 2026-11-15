@@ -191,6 +191,22 @@ describe('invoice notifications', () => {
     expect(await notes('carol', 'companyInvoice', ref.id)).toHaveLength(0);
   });
 
+  it('company invoice edit: only staff newly ticked hear about it', async () => {
+    const ref = await db.collection(`teams/${T}/invoices`).add(invoice({ kind: 'company', uploadedBy: 'carol', uploaderName: 'Carol', relatedUids: ['dave'], status: undefined }));
+    await waitNotes('dave', 'companyInvoice', 1, ref.id);
+    await waitNotes('alice', 'companyInvoice', 1, ref.id);
+    await ref.update({ relatedUids: ['dave', 'bob', 'erin', 'carol'], notes: 'edited' });
+    const [b] = await waitNotes('bob', 'companyInvoice', 1, ref.id);
+    expect(b).toMatchObject({ body: 'Carol uploaded Kedai Ah Seng RM 12.50 (East Farm)', url: `/team/t1/invoices/${ref.id}` });
+    expect(await waitNotes('erin', 'companyInvoice', 1, ref.id)).toHaveLength(1);
+    await ref.update({ notes: 'edited again' }); // nobody new ticked: no one hears
+    await sleep(1500);
+    expect(await notes('dave', 'companyInvoice', ref.id)).toHaveLength(1);
+    expect(await notes('alice', 'companyInvoice', ref.id)).toHaveLength(1);
+    expect(await notes('bob', 'companyInvoice', ref.id)).toHaveLength(1);
+    expect(await notes('carol', 'companyInvoice', ref.id)).toHaveLength(0);
+  });
+
   it('claim: submit, reject, resubmit and reimburse', async () => {
     const ref = await db.collection(`teams/${T}/invoices`).add(invoice());
     await waitNotes('alice', 'claimSubmitted', 1, ref.id);

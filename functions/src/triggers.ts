@@ -157,11 +157,12 @@ async function activeWithRoles(teamId: string, roles: string[]): Promise<string[
 }
 
 /**
- * Invoice notifications: a company invoice goes to admins and the staff ticked on it; a claim submitted
+ * Invoice notifications: a company invoice goes to admins and the staff ticked on it, and an edit of one
+ * to the staff newly ticked (not the editor, from the write's auth context); a claim submitted
  * (or resubmitted: rejected -> pending) goes to admins and finance; a processed claim goes to its uploader.
  * The uploader never hears about their own upload.
  */
-export const onInvoiceWrite = onDocumentWritten(
+export const onInvoiceWrite = onDocumentWrittenWithAuthContext(
   { document: 'teams/{teamId}/invoices/{invoiceId}', region: REGION, secrets: NOTIFY_SECRETS },
   async (event) => {
     const { teamId, invoiceId } = event.params;
@@ -173,9 +174,15 @@ export const onInvoiceWrite = onDocumentWritten(
     const exclude = { exclude: after.uploadedBy };
 
     if (after.kind === 'company') {
-      if (before) return;
+      const n = { kind: 'companyInvoice' as const, id: `${event.id}_companyInvoice`, teamId, refId: invoiceId, url };
+      if (before) {
+        const was = before.relatedUids ?? [];
+        const added = (after.relatedUids ?? []).filter((u) => !was.includes(u) && u !== event.authId);
+        if (!added.length) return;
+        return notifyUsers(added, { ...n, vars: await vars() }, exclude);
+      }
       const admins = await activeWithRoles(teamId, ['admin']);
-      return notifyUsers([...admins, ...(after.relatedUids ?? [])], { kind: 'companyInvoice', id: `${event.id}_companyInvoice`, teamId, refId: invoiceId, vars: await vars(), url }, exclude);
+      return notifyUsers([...admins, ...(after.relatedUids ?? [])], { ...n, vars: await vars() }, exclude);
     }
     if (after.status === before?.status) return;
     if (after.status === 'pending') {
