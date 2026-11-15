@@ -1,4 +1,5 @@
 import { onDocumentWritten, onDocumentWrittenWithAuthContext } from 'firebase-functions/v2/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { db, REGION } from './lib/admin';
 import { NOTIFY_SECRETS, notifyUsers } from './notify';
 import { formatRM } from '../../shared/money';
@@ -147,5 +148,24 @@ export const onInvoiceWrite = onDocumentWritten(
         vars: { ...(await vars()), status: after.status, reason: after.rejectReason ?? '' }, url,
       });
     }
+  },
+);
+
+/**
+ * Invoice photo cleanup (storage rules forbid client deletes): removes the Storage photo when an invoice
+ * doc is deleted, and the OLD photo when photoPath changes (a replacement is a new file + new path).
+ * Missing files are ignored so retried deliveries are harmless.
+ */
+export const onInvoicePhotoCleanup = onDocumentWritten(
+  { document: 'teams/{teamId}/invoices/{invoiceId}', region: REGION },
+  async (event) => {
+    const before = event.data?.before.exists ? (event.data.before.data() as InvoiceDoc) : undefined;
+    const after = event.data?.after.exists ? (event.data.after.data() as InvoiceDoc) : undefined;
+    const old = before?.photoPath;
+    if (!old || old === after?.photoPath) return;
+    // Only ever delete inside this invoice's own folder.
+    const { teamId, invoiceId } = event.params;
+    if (!old.startsWith(`teams/${teamId}/invoices/${invoiceId}/`)) return;
+    await getStorage().bucket().file(old).delete({ ignoreNotFound: true });
   },
 );

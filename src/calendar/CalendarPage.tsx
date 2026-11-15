@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { Plus } from 'lucide-react';
 import { db } from '../firebase';
 import { useAuth } from '../auth/AuthProvider';
@@ -131,7 +131,7 @@ export default function CalendarPage() {
 
   return (
     <>
-      <header className="topbar"><TeamSwitcher /><Bell /></header>
+      <header className="topbar"><TeamSwitcher />{current !== 'personal' && <Link to={`/team/${current}/invoices`}>{t('inv.title')}</Link>}<Bell /></header>
       <main className="stack" aria-hidden={overlay || undefined}>
         <h1>{t('cal.title')}</h1>
         <div className="chips" role="group" aria-label={t('cal.layers')}>

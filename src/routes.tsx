@@ -8,6 +8,9 @@ import CalendarPage from './calendar/CalendarPage';
 import CreateJoinPage from './team/CreateJoinPage';
 import MembersPage from './team/MembersPage';
 import NotificationsPage from './notify/NotificationsPage';
+import InvoicesPage from './invoice/InvoicesPage';
+import InvoiceDetail from './invoice/InvoiceDetail';
+import CategoriesPage from './invoice/CategoriesPage';
 import PushBanner from './notify/PushBanner';
 import ConfirmHost from './ui/ConfirmHost';
 import Toaster from './ui/Toaster';
@@ -49,6 +52,9 @@ export const routes = [
       { path: 'notifications', element: <NotificationsPage /> },
       { path: 'teams/new', element: <CreateJoinPage /> },
       { path: 'team/:teamId/members', element: <MembersPage /> },
+      { path: 'team/:teamId/invoices', element: <InvoicesPage /> },
+      { path: 'team/:teamId/invoices/categories', element: <CategoriesPage /> },
+      { path: 'team/:teamId/invoices/:invoiceId', element: <InvoiceDetail /> },
     ],
   },
 ];
