@@ -59,8 +59,9 @@ export default function MembersPage() {
   async function add() {
     setErr(null);
     const p = normalizeMyPhone(phone);
-    if (!p.ok) { setErr('login.invalidPhone'); return; }
-    if (!name.trim()) return;
+    // Throw on invalid input so the button does not flash "Done".
+    if (!p.ok) { setErr('login.invalidPhone'); throw new Error('invalid phone'); }
+    if (!name.trim()) throw new Error('missing name');
     try {
       const r = await addMemberByPhone(teamId, p.e164, name.trim(), role);
       toast({ kind: 'ok', title: t(r.status === 'added' ? 'team.added' : 'team.invited') });
@@ -85,7 +86,7 @@ export default function MembersPage() {
           <h2>{t('team.inviteCode')}</h2>
           <p><strong>{code ?? '…'}</strong></p>
           <AsyncButton className="btn" onClick={async () => {
-            if (!(await confirmSheet({ title: t('team.resetCode'), body: t('team.resetConfirm'), danger: true }))) return;
+            if (!(await confirmSheet({ title: t('team.resetCode'), body: t('team.resetConfirm'), danger: true }))) throw new Error('cancelled');
             await reset();
           }}>{t('team.resetCode')}</AsyncButton>
         </section>

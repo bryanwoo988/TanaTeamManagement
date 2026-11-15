@@ -8,9 +8,9 @@ const OPTIONS: { lang: Lang; label: string }[] = [
 ];
 
 export default function LanguagePicker() {
-  const { lang, setLang } = useT();
+  const { t, lang, setLang } = useT();
   return (
-    <div role="group" aria-label="Language" className="lang-picker">
+    <div role="group" aria-label={t('settings.language')} className="lang-picker">
       {OPTIONS.map((o) => (
         <button
           key={o.lang}

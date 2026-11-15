@@ -26,4 +26,11 @@ describe('i18n', () => {
     expect(document.documentElement.lang).toBe('zh-Hans');
     expect(t('greet', { name: 'Ali' })).toContain('Ali');
   });
+  it('substitutes placeholders in a single pass', () => {
+    setLang('en');
+    // a substituted value that looks like a placeholder must not be expanded again
+    expect(t('greet', { name: '{x}', x: 'BAD' })).toBe('Hello, {x}');
+    expect(t('greet', { x: 'BAD', name: '{x}' })).toBe('Hello, {x}');
+    expect(t('greet')).toBe('Hello, {name}');
+  });
 });

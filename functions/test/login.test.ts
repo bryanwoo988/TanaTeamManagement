@@ -104,10 +104,21 @@ describe('phone change', () => {
     await call('requestLoginCode', { phone: '0121112222' });
     const r = await call('verifyLoginCode', { phone: '0121112222', code: CODE });
     const auth = { uid: r.uid, phone: '+60121112222' };
+    await db.doc(`users/${r.uid}`).set({ name: 'Ali', phone: '+60121112222' });
     await expect(call('requestPhoneChangeCode', { phone: '0121112222' }, auth)).rejects.toMatchObject({ message: 'phone.same' });
     expect(await call('requestPhoneChangeCode', { phone: '0133334444' }, auth)).toEqual({ sent: true });
     expect(await call('confirmPhoneChange', { phone: '0133334444', code: CODE }, auth)).toEqual({ phone: '+60133334444' });
+    expect((await db.doc(`users/${r.uid}`).get()).data()?.phone).toBe('+60133334444');
     await call('requestLoginCode', { phone: '0133334444' });
     expect((await call('verifyLoginCode', { phone: '0133334444', code: CODE })).uid).toBe(r.uid);
+  });
+
+  it('does not create a profile when the user has none yet', async () => {
+    await call('requestLoginCode', { phone: '0121112222' });
+    const r = await call('verifyLoginCode', { phone: '0121112222', code: CODE });
+    const auth = { uid: r.uid, phone: '+60121112222' };
+    await call('requestPhoneChangeCode', { phone: '0133334444' }, auth);
+    await call('confirmPhoneChange', { phone: '0133334444', code: CODE }, auth);
+    expect((await db.doc(`users/${r.uid}`).get()).exists).toBe(false);
   });
 });

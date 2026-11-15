@@ -12,6 +12,8 @@ import InvoicesPage from './invoice/InvoicesPage';
 import InvoiceDetail from './invoice/InvoiceDetail';
 import CategoriesPage from './invoice/CategoriesPage';
 import ExportPage from './export/ExportPage';
+import SettingsPage from './settings/SettingsPage';
+import BottomNav from './nav/BottomNav';
 import PushBanner from './notify/PushBanner';
 import ConfirmHost from './ui/ConfirmHost';
 import Toaster from './ui/Toaster';
@@ -31,7 +33,7 @@ function Gate() {
     );
   }
   if (!profile) return <ProfileSetup />;
-  return <TeamProvider><PushBanner /><Outlet /></TeamProvider>;
+  return <TeamProvider><PushBanner /><Outlet /><BottomNav /></TeamProvider>;
 }
 
 function Shell() {
@@ -51,6 +53,7 @@ export const routes = [
     children: [
       { index: true, element: <CalendarPage /> },
       { path: 'notifications', element: <NotificationsPage /> },
+      { path: 'settings', element: <SettingsPage /> },
       { path: 'teams/new', element: <CreateJoinPage /> },
       { path: 'export', element: <ExportPage /> },
       { path: 'team/:teamId/export', element: <ExportPage /> },

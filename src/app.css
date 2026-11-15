@@ -198,3 +198,10 @@ h2.err { color: var(--err); }
 .pill.rejected { color: #b3261e; }
 .photo-preview, .photo-full { display: block; max-width: 100%; max-height: 320px; border-radius: var(--radius); object-fit: contain; }
 progress { width: 100%; }
+
+/* ---------- bottom navigation ---------- */
+.nav-spacer { height: calc(64px + var(--safe-bottom)); }
+.bottom-nav { position: fixed; z-index: 15; left: 0; right: 0; bottom: 0; display: flex; background: var(--card); border-top: 1px solid var(--line); padding-bottom: var(--safe-bottom); }
+.bottom-nav a { flex: 1; min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--muted); text-decoration: none; font-size: 0.78rem; }
+.bottom-nav a[aria-current="page"] { color: var(--accent); font-weight: 700; }
+.nav-icon { position: relative; display: inline-flex; }

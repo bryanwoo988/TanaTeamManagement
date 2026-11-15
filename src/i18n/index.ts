@@ -47,9 +47,9 @@ export function setLang(l: Lang): void {
 }
 
 export function t(key: MessageKey, vars?: Record<string, string | number>): string {
-  let s = dicts[current][key] ?? key;
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
-  return s;
+  const s = dicts[current][key] ?? key;
+  // One pass, so a substituted value that contains braces is never expanded again.
+  return vars ? s.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m)) : s;
 }
 
 function subscribe(fn: () => void) {

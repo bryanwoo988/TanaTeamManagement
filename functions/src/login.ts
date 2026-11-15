@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getAuth } from 'firebase-admin/auth';
-import { IS_EMULATOR, REGION } from './lib/admin';
+import { IS_EMULATOR, REGION, db } from './lib/admin';
 import { requireAuth } from './lib/auth';
 import { OTP_SECRETS, checkCode, consumeDailyQuota, requirePhone, sendCode } from './lib/otp';
 import { claimPhoneInvites } from './teams';
@@ -50,6 +50,9 @@ export const confirmPhoneChange = onCall(LOGIN, async (request) => {
   if (owner && owner !== uid) throw new HttpsError('failed-precondition', 'phone.inUse');
   await checkCode(e164, request.data?.code);
   await getAuth().updateUser(uid, { phoneNumber: e164 });
+  // The client cannot write users/{uid}.phone (rules), so mirror the new number here; skip if no profile yet.
+  const profile = db.doc(`users/${uid}`);
+  if ((await profile.get()).exists) await profile.update({ phone: e164 });
   await claimPhoneInvites(uid, e164);
   return { phone: e164 };
 });
