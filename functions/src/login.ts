@@ -18,6 +18,20 @@ async function authUidForPhone(e164: string): Promise<string | null> {
   }
 }
 
+/** The account for this number, created on first login. Two first logins racing share one account. */
+export async function accountForPhone(e164: string): Promise<string> {
+  const existing = await authUidForPhone(e164);
+  if (existing) return existing;
+  try {
+    return (await getAuth().createUser({ phoneNumber: e164 })).uid;
+  } catch (e: any) {
+    if (e?.code !== 'auth/phone-number-already-exists') throw e;
+    const winner = await authUidForPhone(e164); // the other login created it first
+    if (!winner) throw e;
+    return winner;
+  }
+}
+
 export const requestLoginCode = onCall(LOGIN, async (request) => {
   const e164 = requirePhone(request.data?.phone);
   await consumeDailyQuota(e164);
@@ -29,7 +43,7 @@ export const requestLoginCode = onCall(LOGIN, async (request) => {
 export const verifyLoginCode = onCall(LOGIN, async (request) => {
   const e164 = requirePhone(request.data?.phone);
   await checkCode(e164, request.data?.code);
-  const uid = (await authUidForPhone(e164)) ?? (await getAuth().createUser({ phoneNumber: e164 })).uid;
+  const uid = await accountForPhone(e164);
   await claimPhoneInvites(uid, e164);
   return { uid, token: await getAuth().createCustomToken(uid) };
 });

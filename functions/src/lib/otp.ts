@@ -36,14 +36,24 @@ export async function consumeDailyQuota(e164: string): Promise<void> {
   });
 }
 
+/** A stalled Twilio call must fail well inside the function timeout, with a message the screen can show. */
+const TWILIO_TIMEOUT_MS = 10_000;
+
 async function twilio(path: string, form: Record<string, string>): Promise<{ status: number; body: any }> {
   const auth = Buffer.from(`${TWILIO_API_KEY_SID.value()}:${TWILIO_API_KEY_SECRET.value()}`).toString('base64');
-  const res = await fetch(`https://verify.twilio.com/v2/Services/${VERIFY_SERVICE_SID.value()}/${path}`, {
-    method: 'POST',
-    headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form),
-  });
-  return { status: res.status, body: await res.json().catch(() => ({})) };
+  try {
+    const res = await fetch(`https://verify.twilio.com/v2/Services/${VERIFY_SERVICE_SID.value()}/${path}`, {
+      method: 'POST',
+      headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(form),
+      signal: AbortSignal.timeout(TWILIO_TIMEOUT_MS),
+    });
+    return { status: res.status, body: await res.json().catch(() => ({})) };
+  } catch (e: any) {
+    // Timeout (TimeoutError/AbortError) or network failure.
+    console.error('twilio unreachable', path, e?.name, e?.message);
+    throw new HttpsError('failed-precondition', 'login.sendFailed', { twilio: e?.name === 'TimeoutError' ? 'timeout' : 'network' });
+  }
 }
 
 /** Map Twilio Verify error codes to our message keys; log the rest for diagnosis. */

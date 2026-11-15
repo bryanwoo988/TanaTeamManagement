@@ -3,6 +3,7 @@ import { getAuth } from 'firebase-admin/auth';
 import type { Transaction } from 'firebase-admin/firestore';
 import { db, FieldValue, REGION } from './lib/admin';
 import { requireAdmin, requireProfile, requireRole, requireString } from './lib/profile';
+import { secureRandom } from './lib/random';
 import { newInviteCode, normalizeInviteCode } from '../../shared/inviteCode';
 import { normalizeMyPhone } from '../../shared/phone';
 import { DEFAULT_CATEGORIES, type PhoneInviteDoc } from '../../shared/types';
@@ -39,7 +40,7 @@ const CALLABLE = { region: REGION, invoker: 'public' as const };
 /** Reserve a fresh invite code for the team inside a transaction; retry on collision. */
 async function allocateCode(tx: Transaction, teamId: string): Promise<string> {
   for (let i = 0; i < 5; i++) {
-    const code = newInviteCode();
+    const code = newInviteCode(secureRandom);
     const ref = db.doc(`inviteCodes/${code}`);
     if (!(await tx.get(ref)).exists) {
       tx.set(ref, { teamId, createdAt: FieldValue.serverTimestamp() });
