@@ -2,6 +2,7 @@ import { onDocumentWritten, onDocumentWrittenWithAuthContext } from 'firebase-fu
 import { db, REGION } from './lib/admin';
 import { NOTIFY_SECRETS, notifyUsers } from './notify';
 import { formatRM } from '../../shared/money';
+import { klDate } from '../../shared/dates';
 import type { EventDoc, InvoiceDoc, MemberDoc, UserTeamDoc } from '../../shared/types';
 
 /** Single writer of users/{uid}/teams/{teamId}; also raises joinRequest / joined notifications. */
@@ -26,9 +27,9 @@ export const onMemberWrite = onDocumentWritten(
     const url = `/team/${teamId}`;
     if (!before && after.status === 'pending') {
       const admins = await db.collection(`teams/${teamId}/members`).where('role', '==', 'admin').where('status', '==', 'active').get();
-      await notifyUsers(admins.docs.map((d) => d.id), { kind: 'joinRequest', teamId, refId: uid, vars: { name: after.name, team: teamName }, url: `${url}/members` });
+      await notifyUsers(admins.docs.map((d) => d.id), { kind: 'joinRequest', id: `${event.id}_joinRequest`, teamId, refId: uid, vars: { name: after.name, team: teamName }, url: `${url}/members` });
     } else if (after.status === 'active' && (before ? before.status === 'pending' : team.get('createdBy') !== uid)) {
-      await notifyUsers([uid], { kind: 'joined', teamId, vars: { team: teamName }, url });
+      await notifyUsers([uid], { kind: 'joined', id: `${event.id}_joined`, teamId, vars: { team: teamName }, url });
     }
   },
 );
@@ -57,17 +58,19 @@ async function notifyBatch(teamId: string, e: EventDoc): Promise<void> {
     .sort((a, b) => a.date.localeCompare(b.date));
   const first = copies[0] ?? e;
   await notifyUsers(e.assignees, {
-    kind: 'assigned', teamId, refId: `batch_${e.batchId}`,
+    kind: 'assigned', id: `batch_${teamId}_${e.batchId}`, teamId, refId: `batch_${e.batchId}`,
     vars: { title: e.title, team: await teamName(teamId), when: when(first), count: Math.max(copies.length, 1) },
     url: calendarUrl(teamId, first.date),
   }, { exclude: e.createdBy });
 }
 
 /**
- * Shared-calendar notifications: 'assigned' to newly added assignees (not the editor) and 'changed' to
- * assignees who stay on an event whose date/time moved. Deleting an event sends 'changed' with
- * vars.cancelled = 1, which notifyText renders as "Work cancelled".
+ * Shared-calendar notifications: 'assigned' to newly added assignees (not the editor); 'changed' to
+ * assignees who stay on an event whose date/time moved; the cancelled variant of 'changed'
+ * (vars.cancelled = 1, "Work cancelled") to assignees removed from an event or on a deleted event.
+ * No 'changed' for an event whose date (before or after) is already past in KL time.
  * The editor of a create is createdBy; for update/delete it is the write's auth context (authId).
+ * Doc ids are `${event.id}_${variant}` so a repeated delivery of the same event notifies once.
  */
 export const onEventWrite = onDocumentWrittenWithAuthContext(
   { document: 'teams/{teamId}/events/{eventId}', region: REGION, secrets: NOTIFY_SECRETS },
@@ -77,24 +80,29 @@ export const onEventWrite = onDocumentWrittenWithAuthContext(
     const after = event.data?.after.exists ? (event.data.after.data() as EventDoc) : undefined;
     // For an app user authId is their uid; for other principals it never matches a uid, so excluding it is harmless.
     const actor = event.authId;
+    const today = klDate(new Date());
+    const base = async (e: EventDoc, extra: Record<string, number> = {}) => ({
+      teamId, refId: eventId, vars: { title: e.title, team: await teamName(teamId), when: when(e), ...extra }, url: calendarUrl(teamId, e.date),
+    });
 
     if (!before && after) {
       if (after.batchId) return notifyBatch(teamId, after);
-      const n = { teamId, refId: eventId, vars: { title: after.title, team: await teamName(teamId), when: when(after) }, url: calendarUrl(teamId, after.date) };
-      return notifyUsers(after.assignees, { kind: 'assigned', ...n }, { exclude: after.createdBy });
+      return notifyUsers(after.assignees, { kind: 'assigned', id: `${event.id}_assigned`, ...(await base(after)) }, { exclude: after.createdBy });
     }
     if (before && !after) {
-      const n = { teamId, refId: eventId, vars: { title: before.title, team: await teamName(teamId), when: when(before), cancelled: 1 }, url: calendarUrl(teamId, before.date) };
-      return notifyUsers(before.assignees, { kind: 'changed', ...n }, { exclude: actor });
+      if (before.date < today) return;
+      return notifyUsers(before.assignees, { kind: 'changed', id: `${event.id}_cancelled`, ...(await base(before, { cancelled: 1 })) }, { exclude: actor });
     }
     if (!before || !after) return;
+    const past = before.date < today || after.date < today;
     const added = after.assignees.filter((u) => !before.assignees.includes(u));
-    const stayed = timeChanged(before, after) ? after.assignees.filter((u) => before.assignees.includes(u)) : [];
-    if (!added.length && !stayed.length) return;
-    const n = { teamId, refId: eventId, vars: { title: after.title, team: await teamName(teamId), when: when(after) }, url: calendarUrl(teamId, after.date) };
+    const removed = past ? [] : before.assignees.filter((u) => !after.assignees.includes(u));
+    const stayed = !past && timeChanged(before, after) ? after.assignees.filter((u) => before.assignees.includes(u)) : [];
+    if (!added.length && !stayed.length && !removed.length) return;
     await Promise.all([
-      notifyUsers(added, { kind: 'assigned', ...n }, { exclude: actor }),
-      notifyUsers(stayed, { kind: 'changed', ...n }, { exclude: actor }),
+      added.length && notifyUsers(added, { kind: 'assigned', id: `${event.id}_assigned`, ...(await base(after)) }, { exclude: actor }),
+      stayed.length && notifyUsers(stayed, { kind: 'changed', id: `${event.id}_changed`, ...(await base(after)) }, { exclude: actor }),
+      removed.length && notifyUsers(removed, { kind: 'changed', id: `${event.id}_cancelled`, ...(await base(before, { cancelled: 1 })) }, { exclude: actor }),
     ]);
   },
 );
@@ -123,16 +131,16 @@ export const onInvoiceWrite = onDocumentWritten(
     if (after.kind === 'company') {
       if (before) return;
       const admins = await activeWithRoles(teamId, ['admin']);
-      return notifyUsers([...admins, ...(after.relatedUids ?? [])], { kind: 'companyInvoice', teamId, refId: invoiceId, vars: await vars(), url }, exclude);
+      return notifyUsers([...admins, ...(after.relatedUids ?? [])], { kind: 'companyInvoice', id: `${event.id}_companyInvoice`, teamId, refId: invoiceId, vars: await vars(), url }, exclude);
     }
     if (after.status === before?.status) return;
     if (after.status === 'pending') {
       const staff = await activeWithRoles(teamId, ['admin', 'finance']);
-      return notifyUsers(staff, { kind: 'claimSubmitted', teamId, refId: invoiceId, vars: await vars(), url }, exclude);
+      return notifyUsers(staff, { kind: 'claimSubmitted', id: `${event.id}_claimSubmitted`, teamId, refId: invoiceId, vars: await vars(), url }, exclude);
     }
     if (before && (after.status === 'reimbursed' || after.status === 'rejected')) {
       return notifyUsers([after.uploadedBy], {
-        kind: 'claimDone', teamId, refId: invoiceId,
+        kind: 'claimDone', id: `${event.id}_claimDone`, teamId, refId: invoiceId,
         vars: { ...(await vars()), status: after.status, reason: after.rejectReason ?? '' }, url,
       });
     }

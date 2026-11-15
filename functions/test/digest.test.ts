@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Timestamp } from 'firebase-admin/firestore';
 import { clearDb, db } from './helpers';
-import { runDigest } from '../src/digest';
+import { runDigest, tomorrowDigest } from '../src/digest';
 
 // 20:00 in Kuala Lumpur on 2026-11-15; tomorrow is 2026-11-16.
 const AT_8PM = new Date('2026-11-15T12:00:00Z');
@@ -70,5 +70,19 @@ describe('tomorrowDigest', () => {
     const d = await digests('bob');
     expect(d).toHaveLength(1);
     expect(d[0].url).toBe('/?date=2026-11-16');
+  });
+
+  it('uses the scheduled time, so a late run still covers its 15-minute slot', async () => {
+    await seedUser('bob', { digestTime: '20:00' });
+    await seedUser('dave', { digestTime: '19:46' });
+    await seedUser('erin', { digestTime: '19:45' });
+    await db.doc('teams/t1/members/dave').set({ uid: 'dave', name: 'Dave', role: 'member', status: 'active', joinedAt: Timestamp.now() });
+    await db.doc('teams/t1/members/erin').set({ uid: 'erin', name: 'Erin', role: 'member', status: 'active', joinedAt: Timestamp.now() });
+    await db.collection('teams/t1/events').add(ev({ assignees: ['bob', 'dave', 'erin'] }));
+    // Scheduled for 20:00:00 KL on 2026-11-15; executed whenever the test runs.
+    await (tomorrowDigest as any).run({ scheduleTime: '2026-11-15T12:00:00.000Z', jobName: 'tomorrowDigest' });
+    expect(await digests('bob')).toHaveLength(1);
+    expect(await digests('dave')).toHaveLength(1);
+    expect(await digests('erin')).toHaveLength(0);
   });
 });

@@ -43,7 +43,7 @@ async function digestFor(uid: string, u: UserDoc, date: string): Promise<void> {
     throw e;
   }
   const lang = (u.lang ?? 'en') as Lang;
-  await notifyUsers([uid], { kind: 'digest', vars: { count: events.length, list: digestBody(events, lang) }, url: `/?date=${date}` });
+  await notifyUsers([uid], { kind: 'digest', id: `digest_${date}`, vars: { count: events.length, list: digestBody(events, lang) }, url: `/?date=${date}` });
 }
 
 /** Sends tomorrow's digest to everyone whose digestTime fell in the 15 minutes ending at `now` (KL time). */
@@ -61,5 +61,6 @@ export async function runDigest(now: Date): Promise<void> {
 
 export const tomorrowDigest = onSchedule(
   { schedule: 'every 15 minutes', timeZone: 'Asia/Kuala_Lumpur', region: REGION, secrets: NOTIFY_SECRETS },
-  async () => runDigest(new Date()),
+  // The scheduled slot, not the wall clock: a late or retried run still covers the same 15 minutes.
+  async (ev) => runDigest(new Date(ev.scheduleTime)),
 );

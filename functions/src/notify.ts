@@ -16,6 +16,8 @@ export interface Notification {
   refId?: string;
   vars: Record<string, string | number>;
   url: string;
+  /** Deterministic doc id (e.g. `${event.id}_${kind}`): a repeated trigger delivery then writes and pushes nothing new. */
+  id?: string;
 }
 
 /** Delivers one push message; on failure throws an error carrying the push service's HTTP `statusCode`. */
@@ -30,9 +32,10 @@ const webPushSender: PushSender = async (sub, payload) => {
   await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload, { TTL: 24 * 3600 });
 };
 
-/** Local emulator only: never contacts a push service. Endpoints containing '/gone' act expired. */
+/** Local emulator only: never contacts a push service. Endpoints containing '/gone' or '/notfound' act expired. */
 const emulatorSender: PushSender = async (sub, payload, uid) => {
   if (sub.endpoint.includes('/gone')) throw Object.assign(new Error('gone'), { statusCode: 410 });
+  if (sub.endpoint.includes('/notfound')) throw Object.assign(new Error('not found'), { statusCode: 404 });
   await db.collection('_pushLog').add({ uid, endpoint: sub.endpoint, payload });
 };
 
@@ -61,12 +64,22 @@ async function notifyOne(uid: string, n: Notification): Promise<void> {
   if (u.notify?.[n.kind] === false && !MANDATORY_KINDS.includes(n.kind)) return;
 
   const { title, body } = notifyText(n.kind, (u.lang ?? 'en') as Lang, n.vars);
-  await db.collection(`users/${uid}/notifications`).add({
+  const doc = {
     kind: n.kind,
     ...(n.teamId ? { teamId: n.teamId } : {}),
     ...(n.refId ? { refId: n.refId } : {}),
     title, body, url: n.url, read: false, createdAt: FieldValue.serverTimestamp(),
-  });
+  };
+  const notes = db.collection(`users/${uid}/notifications`);
+  if (!n.id) await notes.add(doc);
+  else {
+    try {
+      await notes.doc(n.id).create(doc);
+    } catch (e: any) {
+      if (e?.code === 6) return; // ALREADY_EXISTS: duplicate delivery, already written and pushed.
+      throw e;
+    }
+  }
   await pushAll(uid, JSON.stringify({ title, body, url: n.url, tag: n.refId ?? n.kind, kind: n.kind }));
 }
 
