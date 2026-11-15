@@ -1,8 +1,14 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute, type PrecacheEntry } from 'workbox-precaching';
+import { createHandlerBoundToURL, precacheAndRoute, type PrecacheEntry } from 'workbox-precaching';
+import { NavigationRoute, registerRoute } from 'workbox-routing';
 
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<PrecacheEntry | string> };
 precacheAndRoute(self.__WB_MANIFEST);
+
+/* Single-page app: every navigation (deep links such as /?date=… or /team/…/invoices, from a
+   notification or the home screen) gets the precached shell, so they open offline too (spec §6.3).
+   Firebase's reserved /__/ paths (auth handler, hosting init) always go to the network. */
+registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), { denylist: [/^\/__\//] }));
 
 /* Push payload from the server: {title, body, url, tag, kind}. A push that shows nothing makes the
    browser display its own generic notice, so an unparseable payload still shows something. */
