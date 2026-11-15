@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Timestamp } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 import { call, clearAuth, clearDb, db } from './helpers';
 
 type U = { uid: string; phone: string };
@@ -9,6 +10,7 @@ const carol: U = { uid: 'carol', phone: '+60120000003' };
 const as = (u: U) => ({ call: <T = any>(name: string, data: unknown) => call<T>(name, data, u) });
 
 async function seedUser(u: U, name: string) {
+  await getAuth().createUser({ uid: u.uid, phoneNumber: u.phone });
   await db.doc(`users/${u.uid}`).set({ name, phone: u.phone, lang: 'en', notify: {}, digestTime: '08:00', createdAt: Timestamp.now() });
 }
 
@@ -77,6 +79,32 @@ describe('team functions', () => {
     await expect(as(alice).call('addMemberByPhone', { teamId, phone: '0312345678', name: 'E', role: 'member' })).rejects.toMatchObject({ message: 'login.invalidPhone' });
     await as(alice).call('cancelPhoneInvite', { teamId, phone: '0127770000' });
     expect((await db.doc(`phoneInvites/${teamId}_+60127770000`).get()).exists).toBe(false);
+  });
+
+  it('adds an Auth-only user (no profile doc) directly with the admin-given name', async () => {
+    const { teamId } = await as(alice).call('createTeam', { name: 'East Farm' });
+    const u = await getAuth().createUser({ phoneNumber: '+60125550000' });
+    expect(await as(alice).call('addMemberByPhone', { teamId, phone: '0125550000', name: 'Dan', role: 'member' })).toEqual({ status: 'added' });
+    expect((await db.doc(`teams/${teamId}/members/${u.uid}`).get()).data()).toMatchObject({ name: 'Dan', status: 'active', role: 'member' });
+  });
+
+  it('addMemberByPhone activates an existing pending member', async () => {
+    const { teamId, code } = await as(alice).call('createTeam', { name: 'East Farm' });
+    await as(bob).call('joinTeam', { code });
+    expect(await as(alice).call('addMemberByPhone', { teamId, phone: bob.phone, name: 'B', role: 'finance' })).toEqual({ status: 'added' });
+    expect((await db.doc(`teams/${teamId}/members/bob`).get()).data()).toMatchObject({ status: 'active', role: 'finance' });
+  });
+
+  it('cancelPhoneInvite is admin only', async () => {
+    const { teamId } = await as(alice).call('createTeam', { name: 'East Farm' });
+    await expect(as(bob).call('cancelPhoneInvite', { teamId, phone: '0127770000' })).rejects.toMatchObject({ status: 'PERMISSION_DENIED' });
+  });
+
+  it('a non-last admin can leave', async () => {
+    const { teamId } = await as(alice).call('createTeam', { name: 'East Farm' });
+    await db.doc(`teams/${teamId}/members/bob`).set({ uid: 'bob', name: 'Bob', role: 'admin', status: 'active', joinedAt: Timestamp.now() });
+    await as(alice).call('leaveTeam', { teamId });
+    expect((await db.doc(`teams/${teamId}/members/alice`).get()).exists).toBe(false);
   });
 
   it('leaveTeam refuses the last admin but lets others leave', async () => {

@@ -11,15 +11,16 @@ export const onMemberWrite = onDocumentWritten(
     const before = event.data?.before.exists ? (event.data.before.data() as MemberDoc) : undefined;
     const after = event.data?.after.exists ? (event.data.after.data() as MemberDoc) : undefined;
     const mirror = db.doc(`users/${uid}/teams/${teamId}`);
-    if (!after) {
-      await mirror.delete();
-      return;
+    // Events can arrive late or be retried: mirror from the CURRENT member and team docs, not the event snapshot.
+    const [memberNow, team] = await Promise.all([db.doc(`teams/${teamId}/members/${uid}`).get(), db.doc(`teams/${teamId}`).get()]);
+    if (!memberNow.exists || !team.exists) await mirror.delete();
+    else {
+      const m = memberNow.data() as MemberDoc;
+      const doc: UserTeamDoc = { teamId, name: team.get('name') as string, role: m.role, status: m.status };
+      await mirror.set(doc);
     }
-    const team = await db.doc(`teams/${teamId}`).get();
-    if (!team.exists) return; // team being deleted
+    if (!after || !team.exists) return;
     const teamName = team.get('name') as string;
-    const doc: UserTeamDoc = { teamId, name: teamName, role: after.role, status: after.status };
-    await mirror.set(doc);
 
     const url = `/team/${teamId}`;
     if (!before && after.status === 'pending') {

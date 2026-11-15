@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { getAuth } from 'firebase-admin/auth';
 import type { Transaction } from 'firebase-admin/firestore';
 import { db, FieldValue, REGION } from './lib/admin';
 import { requireAdmin, requireProfile, requireRole, requireString } from './lib/profile';
@@ -113,15 +114,21 @@ export const addMemberByPhone = onCall(CALLABLE, async (request) => {
   const name = requireString(request.data?.name, 1, 80, 'team.badName');
   const role = requireRole(request.data?.role);
   const teamName = (await db.doc(`teams/${teamId}`).get()).get('name') as string;
-  const registered = await db.collection('users').where('phone', '==', p.e164).limit(1).get();
   const inviteRef = db.doc(`phoneInvites/${teamId}_${p.e164}`);
-  if (!registered.empty) {
-    const target = registered.docs[0];
-    const memberRef = db.doc(`teams/${teamId}/members/${target.id}`);
+  let targetUid: string | null = null;
+  try {
+    targetUid = (await getAuth().getUserByPhoneNumber(p.e164)).uid;
+  } catch (e: any) {
+    if (e?.code !== 'auth/user-not-found') throw e;
+  }
+  if (targetUid) {
+    const target = targetUid;
+    const memberRef = db.doc(`teams/${teamId}/members/${target}`);
+    const profileName = (await db.doc(`users/${target}`).get()).get('name');
     await db.runTransaction(async (tx) => {
       const existing = await tx.get(memberRef);
       if (!existing.exists) {
-        tx.set(memberRef, { uid: target.id, name: target.get('name') ?? name, role, status: 'active', joinedAt: FieldValue.serverTimestamp() });
+        tx.set(memberRef, { uid: target, name: typeof profileName === 'string' && profileName ? profileName : name, role, status: 'active', joinedAt: FieldValue.serverTimestamp() });
       } else if (existing.get('status') === 'pending') {
         tx.update(memberRef, { status: 'active', role }); // admin vouches for a pending requester
       } // an active member keeps their role
