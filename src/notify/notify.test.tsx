@@ -69,6 +69,15 @@ describe('NotificationsPage', () => {
 });
 
 describe('PushBanner', () => {
+  it('shows nothing until the live check finishes (no flash for people whose push is on)', async () => {
+    teams = [{ teamId: 'a', name: 'Farm', role: 'member', status: 'active' }];
+    let finish: () => void = () => {};
+    push.repair.mockImplementationOnce(() => new Promise<void>((r) => { finish = r; }));
+    render(<PushBanner />);
+    expect(screen.queryByRole('region', { name: 'Notifications' })).toBeNull();
+    await act(async () => { finish(); });
+    expect(await screen.findByRole('button', { name: 'Turn on notifications' })).toBeInTheDocument();
+  });
   it('is hidden when push is already on', async () => {
     push.state = 'on'; teams = [{ teamId: 'a', name: 'Farm', role: 'member', status: 'active' }];
     render(<PushBanner />);
@@ -78,22 +87,22 @@ describe('PushBanner', () => {
   it('dismissal lasts only for the session: it returns after a remount', async () => {
     teams = [{ teamId: 'a', name: 'Farm', role: 'member', status: 'active' }];
     const { unmount } = render(<PushBanner />);
-    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Not now' }));
     expect(screen.queryByRole('button', { name: 'Turn on notifications' })).toBeNull();
     unmount();
     render(<PushBanner />);
-    expect(screen.getByRole('button', { name: 'Turn on notifications' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Turn on notifications' })).toBeInTheDocument();
   });
   it('is shown to a team member who has not enabled push, and enabling calls enablePush', async () => {
     teams = [{ teamId: 'a', name: 'Farm', role: 'member', status: 'active' }];
     render(<PushBanner />);
-    await userEvent.click(screen.getByRole('button', { name: 'Turn on notifications' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Turn on notifications' }));
     expect(push.enable).toHaveBeenCalledWith('u1');
   });
-  it('is shown to someone assigned an upcoming event', () => {
+  it('is shown to someone assigned an upcoming event', async () => {
     listEvents.mockImplementation((_s, _f, _t, cb) => { cb([{ id: 'e', assignees: ['u1'], date: '2026-11-20' }]); return () => {}; });
     render(<PushBanner />);
-    expect(screen.getByRole('button', { name: 'Turn on notifications' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Turn on notifications' })).toBeInTheDocument();
   });
   it('silently repairs this device\'s push registration on app start', async () => {
     render(<PushBanner />);
@@ -104,10 +113,10 @@ describe('PushBanner', () => {
     render(<PushBanner />);
     expect(screen.queryByRole('button', { name: 'Turn on notifications' })).toBeNull();
   });
-  it('shows iPhone instructions when it needs the home screen', () => {
+  it('shows iPhone instructions when it needs the home screen', async () => {
     push.state = 'needs-home-screen'; teams = [{ teamId: 'a', name: 'Farm', role: 'member', status: 'active' }];
     render(<PushBanner />);
-    expect(screen.getByText(/Add to Home Screen/)).toBeInTheDocument();
+    expect(await screen.findByText(/Add to Home Screen/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Turn on notifications' })).toBeNull();
   });
 });

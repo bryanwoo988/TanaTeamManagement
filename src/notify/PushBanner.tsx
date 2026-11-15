@@ -7,7 +7,7 @@ import { klDate } from '../../shared/dates';
 import { useT } from '../i18n';
 import AsyncButton from '../ui/AsyncButton';
 import { errorDetail, toast } from '../ui/toast';
-import { enablePush, pushState, repairPush, resolvePushState, type PushState } from './push';
+import { enablePush, repairPush, resolvePushState, type PushState } from './push';
 
 /** Nudges people who would benefit from push (team members, or anyone with an upcoming job) to turn it on. */
 export default function PushBanner() {
@@ -15,7 +15,8 @@ export default function PushBanner() {
   const { user } = useAuth();
   const uid = user?.uid ?? '';
   const { teams } = useTeams();
-  const [state, setState] = useState<PushState>(pushState);
+  // null until the live check finishes: never flash the banner at people whose push is already on.
+  const [state, setState] = useState<PushState | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [assigned, setAssigned] = useState(false);
 
@@ -28,7 +29,7 @@ export default function PushBanner() {
   }, [uid]);
 
   useEffect(() => {
-    if (!uid || state === 'on') return;
+    if (!uid || state === null || state === 'on') return;
     const now = new Date();
     const from = klDate(now);
     const to = klDate(new Date(now.getTime() + 60 * 86_400_000));
@@ -36,7 +37,7 @@ export default function PushBanner() {
   }, [uid, state]);
 
   const member = teams.some(isActive);
-  if (!uid || state === 'on' || state === 'unsupported' || dismissed || !(member || assigned)) return null;
+  if (!uid || state === null || state === 'on' || state === 'unsupported' || dismissed || !(member || assigned)) return null;
 
   async function enable() {
     try { await enablePush(uid); } catch (e) { toast({ kind: 'err', title: t('notify.pushFailed'), body: errorDetail(e) }); throw e; } finally { setState(await resolvePushState(uid)); }
