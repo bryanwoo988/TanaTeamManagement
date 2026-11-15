@@ -34,7 +34,7 @@ export const verifyLoginCode = onCall(LOGIN, async (request) => {
   return { uid, token: await getAuth().createCustomToken(uid) };
 });
 
-export const requestPhoneChangeCode = onCall(PUBLIC, async (request) => {
+export const requestPhoneChangeCode = onCall(LOGIN, async (request) => {
   const uid = requireAuth(request);
   const e164 = requirePhone(request.data?.phone);
   if ((await getAuth().getUser(uid)).phoneNumber === e164) throw new HttpsError('invalid-argument', 'phone.same');
@@ -43,7 +43,7 @@ export const requestPhoneChangeCode = onCall(PUBLIC, async (request) => {
   return { sent: true };
 });
 
-export const confirmPhoneChange = onCall(PUBLIC, async (request) => {
+export const confirmPhoneChange = onCall(LOGIN, async (request) => {
   const uid = requireAuth(request);
   const e164 = requirePhone(request.data?.phone);
   const owner = await authUidForPhone(e164);

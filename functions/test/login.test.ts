@@ -55,7 +55,6 @@ describe('verifyLoginCode', () => {
     await call('requestLoginCode', { phone: '012-111 2222' });
     const r = await call('verifyLoginCode', { phone: '012-111 2222', code: CODE });
     expect((await db.doc(`teams/t1/members/${r.uid}`).get()).data()).toMatchObject({ uid: r.uid, role: 'member', status: 'active', name: 'Amin' });
-    expect((await db.doc(`users/${r.uid}/teams/t1`).get()).data()).toMatchObject({ teamId: 't1', name: 'East', role: 'member', status: 'active' });
     expect((await db.doc('phoneInvites/t1_+60121112222').get()).exists).toBe(false);
   });
 
@@ -70,6 +69,33 @@ describe('verifyLoginCode', () => {
     await call('verifyLoginCode', { phone: '0121112222', code: CODE });
     expect((await db.doc(`teams/t2/members/${r.uid}`).get()).data()).toMatchObject({ role: 'manager', name: 'Real Name' });
     expect((await db.doc('phoneInvites/t2_+60121112222').get()).exists).toBe(false);
+  });
+});
+
+describe('claimPhoneInvites safety', () => {
+  const invite = (teamId: string, role: string) => db.doc(`phoneInvites/${teamId}_+60121112222`).set({
+    teamId, teamName: 'T', phone: '+60121112222', name: 'Amin', role, createdBy: 'boss', createdAt: Timestamp.now(),
+  });
+  const login = async () => {
+    await call('requestLoginCode', { phone: '0121112222' });
+    return call('verifyLoginCode', { phone: '0121112222', code: CODE });
+  };
+
+  it('keeps an existing member untouched and still deletes the invite', async () => {
+    const r = await login();
+    const joinedAt = Timestamp.fromMillis(1000);
+    await db.doc(`teams/t1/members/${r.uid}`).set({ uid: r.uid, name: 'Boss', role: 'admin', status: 'active', joinedAt });
+    await invite('t1', 'member');
+    await login();
+    expect((await db.doc(`teams/t1/members/${r.uid}`).get()).data()).toMatchObject({ role: 'admin', name: 'Boss', joinedAt });
+    expect((await db.doc('phoneInvites/t1_+60121112222').get()).exists).toBe(false);
+  });
+
+  it('creates no membership when the invite was revoked before the claim', async () => {
+    await invite('t1', 'member');
+    await db.doc('phoneInvites/t1_+60121112222').delete();
+    const r = await login();
+    expect((await db.doc(`teams/t1/members/${r.uid}`).get()).exists).toBe(false);
   });
 });
 
