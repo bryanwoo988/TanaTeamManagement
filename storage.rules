@@ -11,6 +11,10 @@ service firebase.storage {
     function isFinance(t) {
       return isActive(t) && firestore.get(memberDoc(t)).data.role in ['admin', 'finance'];
     }
+    // Same as Firestore mayUpload: members may start new invoices unless an admin set canUpload false.
+    function mayUpload(t) {
+      return isFinance(t) || (isActive(t) && firestore.get(memberDoc(t)).data.get('canUpload', true) != false);
+    }
 
     match /teams/{t}/invoices/{invoiceId}/{file} {
       function invoicePath() { return /databases/(default)/documents/teams/$(t)/invoices/$(invoiceId); }
@@ -20,12 +24,13 @@ service firebase.storage {
       allow read: if isActive(t) && firestore.exists(invoicePath())
         && (isFinance(t) || invoice().uploadedBy == request.auth.uid || request.auth.uid in invoice().relatedUids);
 
-      // New files only (no overwrite). Into a new invoice's folder, or into an existing
-      // invoice the caller may edit (its uploader, or finance/admin).
+      // New files only (no overwrite). Into a new invoice's folder (if the caller may upload),
+      // or into an existing invoice the caller may edit (its uploader, or finance/admin).
       allow create: if resource == null && isActive(t)
         && request.resource.contentType == 'image/jpeg'
         && request.resource.size < 2 * 1024 * 1024
-        && (!firestore.exists(invoicePath()) || isFinance(t) || invoice().uploadedBy == request.auth.uid);
+        && ((!firestore.exists(invoicePath()) && mayUpload(t))
+            || (firestore.exists(invoicePath()) && (isFinance(t) || invoice().uploadedBy == request.auth.uid)));
     }
   }
 }

@@ -20,8 +20,10 @@ let teams: unknown[] = [];
 vi.mock('../team/TeamContext', () => ({ useTeams: () => ({ teams, current: 'personal', setCurrent: () => {}, member: () => undefined }) }));
 const listEvents = vi.fn();
 vi.mock('../calendar/data', () => ({ listEvents: (...a: unknown[]) => listEvents(...a) }));
-const push = { state: 'off', enable: vi.fn().mockResolvedValue(undefined), disable: vi.fn().mockResolvedValue(undefined) };
-vi.mock('./push', async (orig) => ({ ...(await orig<typeof import('./push')>()), pushState: () => push.state, resolvePushState: async () => push.state, enablePush: (...a: unknown[]) => push.enable(...a), disablePush: (...a: unknown[]) => push.disable(...a) }));
+const push = { state: 'off', enable: vi.fn().mockResolvedValue(undefined), disable: vi.fn().mockResolvedValue(undefined), repair: vi.fn().mockResolvedValue(undefined) };
+vi.mock('./push', async (orig) => ({ ...(await orig<typeof import('./push')>()), pushState: () => push.state, resolvePushState: async () => push.state, enablePush: (...a: unknown[]) => push.enable(...a), disablePush: (...a: unknown[]) => push.disable(...a), repairPush: (...a: unknown[]) => push.repair(...a) }));
+const sendTestPush = vi.fn();
+vi.mock('../api', () => ({ sendTestPush: () => sendTestPush(), getPushConfig: vi.fn() }));
 
 import NotificationsPage from './NotificationsPage';
 import PushBanner from './PushBanner';
@@ -93,6 +95,11 @@ describe('PushBanner', () => {
     render(<PushBanner />);
     expect(screen.getByRole('button', { name: 'Turn on notifications' })).toBeInTheDocument();
   });
+  it('silently repairs this device\'s push registration on app start', async () => {
+    render(<PushBanner />);
+    await act(async () => {});
+    expect(push.repair).toHaveBeenCalledWith('u1');
+  });
   it('is hidden for someone with no team and nothing assigned', () => {
     render(<PushBanner />);
     expect(screen.queryByRole('button', { name: 'Turn on notifications' })).toBeNull();
@@ -126,5 +133,27 @@ describe('NotifySettings', () => {
     render(<NotifySettings />);
     await userEvent.click(screen.getByRole('button', { name: 'Turn on notifications' }));
     expect(push.enable).toHaveBeenCalledWith('u1');
+  });
+
+  it('sends a test notification and reports how many devices got it', async () => {
+    push.state = 'on';
+    sendTestPush.mockResolvedValue({ results: [{ host: 'fcm.googleapis.com', ok: true }, { host: 'web.push.apple.com', ok: true }] });
+    render(<NotifySettings />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Send test notification' }));
+    expect(sendTestPush).toHaveBeenCalled();
+    expect(await screen.findByText(/Test sent to 2 device/)).toBeInTheDocument();
+  });
+  it('test with no device registered says to turn notifications on first', async () => {
+    sendTestPush.mockResolvedValue({ results: [] });
+    render(<NotifySettings />);
+    await userEvent.click(screen.getByRole('button', { name: 'Send test notification' }));
+    expect(await screen.findByText(/No device registered/)).toBeInTheDocument();
+  });
+  it('test failure shows the push service status code', async () => {
+    push.state = 'on';
+    sendTestPush.mockResolvedValue({ results: [{ host: 'fcm.googleapis.com', ok: false, statusCode: 403, message: 'x' }] });
+    render(<NotifySettings />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Send test notification' }));
+    expect(await screen.findByText(/403/)).toBeInTheDocument();
   });
 });

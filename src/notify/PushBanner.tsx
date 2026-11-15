@@ -7,7 +7,7 @@ import { klDate } from '../../shared/dates';
 import { useT } from '../i18n';
 import AsyncButton from '../ui/AsyncButton';
 import { toast } from '../ui/toast';
-import { enablePush, pushState, resolvePushState, type PushState } from './push';
+import { enablePush, pushState, repairPush, resolvePushState, type PushState } from './push';
 
 /** Nudges people who would benefit from push (team members, or anyone with an upcoming job) to turn it on. */
 export default function PushBanner() {
@@ -22,7 +22,8 @@ export default function PushBanner() {
   useEffect(() => {
     if (!uid) return;
     let live = true;
-    resolvePushState(uid).then((s) => { if (live) setState(s); });
+    // Mounted once signed in with a profile: first fix a stale registration (key changed, or removed by the server), silently.
+    repairPush(uid).then(() => resolvePushState(uid)).then((s) => { if (live) setState(s); });
     return () => { live = false; };
   }, [uid]);
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { sendTestPush } from '../api';
 import { useAuth } from '../auth/AuthProvider';
 import { useT, type MessageKey } from '../i18n';
 import AsyncButton from '../ui/AsyncButton';
@@ -24,6 +25,21 @@ export default function NotifySettings() {
   const userRef = () => doc(db, 'users', uid);
   const save = (data: Record<string, unknown>) => updateDoc(userRef(), data).catch(() => toastError());
 
+  const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  async function sendTest() {
+    setTestMsg(null);
+    try {
+      const { results } = await sendTestPush();
+      const sent = results.filter((r) => r.ok).length;
+      if (sent > 0) setTestMsg({ ok: true, text: t('notify.testOk', { n: sent }) });
+      else if (results.length === 0) setTestMsg({ ok: false, text: t('notify.testNone') });
+      else {
+        const codes = [...new Set(results.map((r) => (r.statusCode ? String(r.statusCode) : '?')))].join(', ');
+        setTestMsg({ ok: false, text: t('notify.testFailed', { codes }) });
+      }
+    } catch (e) { toastError(); throw e; }
+  }
+
   async function togglePush() {
     try {
       if (state === 'on') await disablePush(uid); else await enablePush(uid);
@@ -38,6 +54,10 @@ export default function NotifySettings() {
       {(state === 'on' || state === 'off') && (
         <AsyncButton className="btn block" onClick={togglePush}>{state === 'on' ? t('notify.pushOff') : t('notify.pushOn')}</AsyncButton>
       )}
+      {(state === 'on' || state === 'off') && (
+        <AsyncButton className="btn block" onClick={sendTest}>{t('notify.testSend')}</AsyncButton>
+      )}
+      {testMsg && <p role="status" className={testMsg.ok ? 'small' : 'small err'}>{testMsg.text}</p>}
       <ul className="plain-list">
         {KINDS.map((k) => {
           const locked = MANDATORY_KINDS.includes(k);

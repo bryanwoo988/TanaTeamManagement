@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { notifyText } from './notifyText';
+import { notifyText, testPushText } from './notifyText';
 import type { NotifyKind } from './types';
 
 const KINDS: NotifyKind[] = ['digest', 'assigned', 'changed', 'companyInvoice', 'claimSubmitted', 'claimDone', 'joinRequest', 'joined'];
@@ -36,5 +36,17 @@ describe('notifyText', () => {
   });
   it('digest body is the list', () => {
     expect(notifyText('digest', 'en', { count: 2, list: 'a\nb' })).toEqual({ title: 'Tomorrow: 2 jobs', body: 'a\nb' });
+  });
+});
+
+describe('testPushText', () => {
+  it('has a title and body in every language, falling back to English', () => {
+    for (const l of ['zh', 'en', 'ms'] as const) {
+      const t = testPushText(l);
+      expect(t.title).toBeTruthy();
+      expect(t.body).toBeTruthy();
+    }
+    expect(testPushText('ms').title).toBe('Notifikasi ujian');
+    expect(testPushText('xx' as never)).toEqual(testPushText('en'));
   });
 });

@@ -68,3 +68,14 @@ export function notifyText(kind: NotifyKind, lang: Lang, v: Vars): Text {
   const t = (T[lang] ?? T.en)[variant(kind, v)];
   return { title: fill(t.title, v), body: fill(t.body, v) };
 }
+
+const TEST_PUSH: Record<Lang, Text> = {
+  zh: { title: '测试通知', body: '如果你看到这条通知，手机推送已经正常。' },
+  en: { title: 'Test notification', body: 'If you can see this, notifications work on this device.' },
+  ms: { title: 'Notifikasi ujian', body: 'Jika anda nampak ini, notifikasi berfungsi pada peranti ini.' },
+};
+
+/** Title and body of the self-test push sent from Settings, in the person's language. */
+export function testPushText(lang: Lang): Text {
+  return TEST_PUSH[lang] ?? TEST_PUSH.en;
+}

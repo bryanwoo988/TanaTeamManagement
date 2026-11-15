@@ -162,3 +162,16 @@ describe('member names follow the profile', () => {
     expect((await waitFor(() => member(b.teamId, 'alice'), (d) => d.get('name') === 'Alice Tan')).get('name')).toBe('Alice Tan');
   });
 });
+
+describe('onMemberWrite mirrors canUpload', () => {
+  it('copies canUpload when present and omits it when absent', async () => {
+    const { teamId } = await as(alice).call('createTeam', { name: 'East Farm' });
+    await as(alice).call('addMemberByPhone', { teamId, phone: bob.phone, name: 'Bob', role: 'member' });
+    const first = await waitFor(() => userTeam(bob.uid, teamId), (d) => d.exists);
+    expect(first.data()).not.toHaveProperty('canUpload');
+    await db.doc(`teams/${teamId}/members/bob`).update({ canUpload: false });
+    expect((await waitFor(() => userTeam(bob.uid, teamId), (d) => d.get('canUpload') === false)).get('canUpload')).toBe(false);
+    await db.doc(`teams/${teamId}/members/bob`).update({ canUpload: true });
+    expect((await waitFor(() => userTeam(bob.uid, teamId), (d) => d.get('canUpload') === true)).get('canUpload')).toBe(true);
+  });
+});

@@ -6,7 +6,7 @@ import {
   assertSucceeds,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import { deleteObject, getMetadata, ref, uploadBytes } from 'firebase/storage';
 
 let env: RulesTestEnvironment;
@@ -93,6 +93,29 @@ describe('upload invoice photos', () => {
     await assertSucceeds(uploadBytes(ref(st('mem'), path('A', 'claimMem', 'p2.jpg')), small(), JPEG));
     await assertSucceeds(uploadBytes(ref(st('fin'), path('A', 'company2', 'p2.jpg')), small(), JPEG));
     await assertSucceeds(uploadBytes(ref(st('admin'), path('A', 'claimMem', 'p3.jpg')), small(), JPEG));
+  });
+  it('a member whose receipt uploads are off cannot start a new invoice folder; true or absent may', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'teams/A/members/mem'), { canUpload: false });
+      await updateDoc(doc(ctx.firestore(), 'teams/A/members/mem2'), { canUpload: true });
+    });
+    // Folder/file names no other test uses, so a denial can only come from the permission.
+    await assertFails(uploadBytes(ref(st('mem'), path('A', 'offInv', 'off.jpg')), small(), JPEG));
+    await assertSucceeds(uploadBytes(ref(st('mem2'), path('A', 'onInv', 'on.jpg')), small(), JPEG));
+    await assertSucceeds(uploadBytes(ref(st('bMem'), path('B', 'absentInv', 'absent.jpg')), small(), JPEG));
+  });
+  it('with uploads off, the owner may still add a photo to their own existing claim', async () => {
+    await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), 'teams/A/members/mem'), { canUpload: false }));
+    // A file name no other test uses: photos are never overwritten.
+    await assertSucceeds(uploadBytes(ref(st('mem'), path('A', 'claimMem', 'fix-off.jpg')), small(), JPEG));
+  });
+  it('finance and admin upload new invoices regardless of canUpload', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'teams/A/members/fin'), { canUpload: false });
+      await updateDoc(doc(ctx.firestore(), 'teams/A/members/admin'), { canUpload: false });
+    });
+    await assertSucceeds(uploadBytes(ref(st('fin'), path('A', 'finOffInv', 'f.jpg')), small(), JPEG));
+    await assertSucceeds(uploadBytes(ref(st('admin'), path('A', 'adminOffInv', 'a.jpg')), small(), JPEG));
   });
   it('rejects wrong content type', async () => {
     await assertFails(uploadBytes(ref(st('mem'), path('A', 'newInv', 'a.png')), small(), { contentType: 'image/png' }));
