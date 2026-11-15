@@ -120,7 +120,13 @@ h2.err { color: var(--err); }
   width: 100%; max-width: 640px; background: var(--card); border-radius: 22px 22px 0 0;
   padding: 10px 20px calc(20px + var(--safe-bottom)); box-shadow: var(--shadow-lg);
   animation: sheet-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+  /* Tall forms (invoice editor with a photo) must scroll inside the sheet, not get stuck off-screen. */
+  max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px));
+  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
 }
+/* While a sheet is open the page behind it must not scroll (iOS otherwise scrolls the page instead). */
+body:has(.sheet-backdrop) { overflow: hidden; }
+.sheet-backdrop { overscroll-behavior: contain; }
 .sheet-handle { width: 40px; height: 5px; border-radius: 99px; background: var(--line); margin: 0 auto 12px; }
 .sheet-title { margin: 4px 0 8px; }
 @keyframes sheet-in { from { transform: translateY(100%); } to { transform: none; } }
