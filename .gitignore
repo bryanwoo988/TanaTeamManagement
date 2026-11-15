@@ -1,0 +1,8 @@
+.superpowers/
+node_modules/
+dist/
+functions/lib/
+*.log
+.env
+.env.local
+functions/.env
