@@ -96,6 +96,7 @@ async function dropSubscription(uid: string, sub: PushSubscription): Promise<voi
 
 /** Ask permission, subscribe and register this device's subscription. Rejects if permission is refused. */
 export async function enablePush(uid: string): Promise<void> {
+  setPushOptOut(uid, false);
   if (await Notification.requestPermission() !== 'granted') throw new Error('permission-denied');
   const key = await serverKey();
   const reg = await navigator.serviceWorker.ready;
@@ -116,8 +117,10 @@ export async function repairPush(uid: string): Promise<void> {
     if (pushState() !== 'off') return;
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
-    if (!sub) return;
     const key = await serverKey();
+    // Permission already granted but no subscription (e.g. signed out and back in): turn push back on for
+    // this user, unless they switched it off themselves in Settings.
+    if (!sub) { if (!optedOut(uid)) await subscribeAndRegister(uid, reg, key); return; }
     if (sameKey(sub, key) && (await getDoc(await regDoc(uid, sub.endpoint))).exists()) return;
     await dropSubscription(uid, sub);
     await subscribeAndRegister(uid, reg, key);
@@ -131,6 +134,15 @@ export async function repairPush(uid: string): Promise<void> {
  * offline, a Firestore delete stays queued until this user is online and signed in again, while a dead endpoint makes the
  * server's next push fail with 410 and remove the registration itself.
  */
+const OPT_OUT = (uid: string) => `pushOptOut:${uid}`;
+function optedOut(uid: string): boolean {
+  try { return localStorage.getItem(OPT_OUT(uid)) === '1'; } catch { return false; }
+}
+/** Remember (on this device) that this user switched push off themselves, so repairPush won't turn it back on. */
+export function setPushOptOut(uid: string, out: boolean): void {
+  try { if (out) localStorage.setItem(OPT_OUT(uid), '1'); else localStorage.removeItem(OPT_OUT(uid)); } catch { /* storage blocked */ }
+}
+
 export async function disablePush(uid: string): Promise<void> {
   const reg = await navigator.serviceWorker.ready;
   const sub = await reg.pushManager.getSubscription();

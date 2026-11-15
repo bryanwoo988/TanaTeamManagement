@@ -7,7 +7,7 @@ import { useT, type MessageKey } from '../i18n';
 import AsyncButton from '../ui/AsyncButton';
 import { errorDetail, toast, toastError } from '../ui/toast';
 import { MANDATORY_KINDS, type NotifyKind } from '../../shared/types';
-import { disablePush, enablePush, pushState, resolvePushState, type PushState } from './push';
+import { disablePush, enablePush, pushState, resolvePushState, setPushOptOut, type PushState } from './push';
 
 const KINDS: NotifyKind[] = ['digest', 'assigned', 'changed', 'companyInvoice', 'claimSubmitted', 'claimDone', 'joinRequest', 'joined'];
 
@@ -42,7 +42,7 @@ export default function NotifySettings() {
 
   async function togglePush() {
     try {
-      if (state === 'on') await disablePush(uid); else await enablePush(uid);
+      if (state === 'on') { setPushOptOut(uid, true); await disablePush(uid); } else { setPushOptOut(uid, false); await enablePush(uid); }
     } catch (e) { toast({ kind: 'err', title: t('notify.pushFailed'), body: errorDetail(e) }); throw e; } finally { setState(await resolvePushState(uid)); }
   }
 

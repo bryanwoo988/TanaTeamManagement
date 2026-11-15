@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 /** Newest first. The newest entry's date is replaced by the real build time on the About page. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.4.3',
+    date: '2026-11-16 07:05',
+    items: {
+      zh: ['登出再登录后，通知会自动重新开启（除非你在设置里自己关掉）'],
+      en: ['After signing out and back in, notifications turn back on automatically (unless you switched them off in Settings)'],
+      ms: ['Selepas log keluar dan log masuk semula, pemberitahuan dihidupkan semula secara automatik (kecuali anda mematikannya dalam Tetapan)'],
+    },
+  },
+  {
     version: '1.4.2',
     date: '2026-11-16 06:58',
     items: {

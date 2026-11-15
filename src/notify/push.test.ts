@@ -14,7 +14,7 @@ vi.mock('firebase/firestore', () => ({
   serverTimestamp: () => 'TS',
 }));
 
-import { _resetPushKey, disablePush, enablePush, isLocalPath, pushActive, pushState, repairPush, resolvePushState } from './push';
+import { _resetPushKey, disablePush, enablePush, isLocalPath, pushActive, pushState, repairPush, resolvePushState, setPushOptOut } from './push';
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148';
 const ANDROID = 'Mozilla/5.0 (Linux; Android 14) Chrome/120 Mobile Safari/537.36';
@@ -188,12 +188,21 @@ describe('repairPush (app start)', () => {
     expect(subscribe).not.toHaveBeenCalled();
     expect(getPushConfig).not.toHaveBeenCalled();
   });
-  it('does nothing when the browser has no subscription (the person never turned push on here)', async () => {
+  it('turns push back on after sign-in when permission is granted but there is no subscription', async () => {
     env(ANDROID, { permission: 'granted' });
+    localStorage.removeItem('pushOptOut:u1');
+    const subscribe = sw(null, fresh);
+    await repairPush('u1');
+    expect(subscribe).toHaveBeenCalled();
+    expect(setDoc).toHaveBeenCalled();
+  });
+  it('respects a user who switched push off themselves on this device', async () => {
+    env(ANDROID, { permission: 'granted' });
+    setPushOptOut('u1', true);
     const subscribe = sw(null, fresh);
     await repairPush('u1');
     expect(subscribe).not.toHaveBeenCalled();
-    expect(setDoc).not.toHaveBeenCalled();
+    setPushOptOut('u1', false);
   });
   it('leaves a healthy subscription alone', async () => {
     env(ANDROID, { permission: 'granted' });
