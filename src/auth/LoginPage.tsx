@@ -7,6 +7,7 @@ import { useT, type MessageKey } from '../i18n';
 import InlineLangSwitch from '../i18n/InlineLangSwitch';
 import { normalizeMyPhone } from '../../shared/phone';
 import { authErrorKey, detailFor } from './authErrors';
+import Logo from '../ui/Logo';
 
 const RESEND_SECONDS = 60;
 
@@ -105,7 +106,7 @@ export default function LoginPage() {
   return (
     <main className="login">
       <section className="login-hero">
-        <img className="login-logo" src="/icons/icon-192.png" alt="" width={72} height={72} />
+        <Logo />
         <p className="login-welcome">{t('login.welcome')}</p>
         <h1 className="login-title">{t('appName')}</h1>
         <p className="muted">{t('login.intro')}</p>
