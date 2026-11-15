@@ -4,6 +4,7 @@ import { db, REGION } from './lib/admin';
 import { NOTIFY_SECRETS, notifyUsers } from './notify';
 import { formatRM } from '../../shared/money';
 import { klDate } from '../../shared/dates';
+import { notifyUrl } from '../../shared/notifyUrls';
 import type { EventDoc, InvoiceDoc, MemberDoc, UserTeamDoc } from '../../shared/types';
 
 /** Single writer of users/{uid}/teams/{teamId}; also raises joinRequest / joined notifications. */
@@ -25,19 +26,18 @@ export const onMemberWrite = onDocumentWritten(
     if (!after || !team.exists) return;
     const teamName = team.get('name') as string;
 
-    const url = `/team/${teamId}`;
     if (!before && after.status === 'pending') {
       const admins = await db.collection(`teams/${teamId}/members`).where('role', '==', 'admin').where('status', '==', 'active').get();
-      await notifyUsers(admins.docs.map((d) => d.id), { kind: 'joinRequest', id: `${event.id}_joinRequest`, teamId, refId: uid, vars: { name: after.name, team: teamName }, url: `${url}/members` });
+      await notifyUsers(admins.docs.map((d) => d.id), { kind: 'joinRequest', id: `${event.id}_joinRequest`, teamId, refId: uid, vars: { name: after.name, team: teamName }, url: notifyUrl.members(teamId) });
     } else if (after.status === 'active' && (before ? before.status === 'pending' : team.get('createdBy') !== uid)) {
-      await notifyUsers([uid], { kind: 'joined', id: `${event.id}_joined`, teamId, vars: { team: teamName }, url });
+      await notifyUsers([uid], { kind: 'joined', id: `${event.id}_joined`, teamId, vars: { team: teamName }, url: notifyUrl.calendar(teamId) });
     }
   },
 );
 
 const teamName = async (teamId: string) => ((await db.doc(`teams/${teamId}`).get()).get('name') as string | undefined) ?? '';
 const when = (e: Pick<EventDoc, 'date' | 'allDay' | 'start'>) => (e.allDay || !e.start ? e.date : `${e.date} ${e.start}`);
-const calendarUrl = (teamId: string, date: string) => `/?team=${teamId}&date=${date}`;
+const calendarUrl = (teamId: string, date: string) => notifyUrl.calendar(teamId, date);
 const timeChanged = (a: EventDoc, b: EventDoc) =>
   a.date !== b.date || a.start !== b.start || a.end !== b.end || a.allDay !== b.allDay;
 const BATCH_TTL_MS = 2 * 86_400_000;
@@ -128,7 +128,7 @@ export const onInvoiceWrite = onDocumentWritten(
     const before = event.data?.before.exists ? (event.data.before.data() as InvoiceDoc) : undefined;
     const after = event.data?.after.exists ? (event.data.after.data() as InvoiceDoc) : undefined;
     if (!after) return;
-    const url = `/team/${teamId}/invoices/${invoiceId}`;
+    const url = notifyUrl.invoice(teamId, invoiceId);
     const vars = async () => ({ team: await teamName(teamId), name: after.uploaderName, amount: formatRM(after.amountSen), vendor: after.vendor });
     const exclude = { exclude: after.uploadedBy };
 

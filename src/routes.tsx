@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router';
+import { Navigate, Outlet } from 'react-router';
 import { useAuth } from './auth/AuthProvider';
 import LoginPage from './auth/LoginPage';
 import ProfileSetup from './auth/ProfileSetup';
@@ -61,6 +61,8 @@ export const routes = [
       { path: 'team/:teamId/invoices', element: <InvoicesPage /> },
       { path: 'team/:teamId/invoices/categories', element: <CategoriesPage /> },
       { path: 'team/:teamId/invoices/:invoiceId', element: <InvoiceDetail /> },
+      // Old or mistyped links (e.g. from an earlier notification) go home rather than to a blank page.
+      { path: '*', element: <Navigate to="/" replace /> },
     ],
   },
 ];

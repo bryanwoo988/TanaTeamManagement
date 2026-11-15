@@ -4,6 +4,7 @@ import { db, REGION } from './lib/admin';
 import { NOTIFY_SECRETS, notifyUsers } from './notify';
 import { addDays, klDate, klTime, minutesOf } from '../../shared/dates';
 import { digestBody, digestDay, isDue } from '../../shared/digest';
+import { notifyUrl } from '../../shared/notifyUrls';
 import type { EventDoc, Lang, MemberDoc, UserDoc } from '../../shared/types';
 
 const WINDOW = 15;
@@ -43,7 +44,7 @@ async function digestFor(uid: string, u: UserDoc, date: string): Promise<void> {
     throw e;
   }
   const lang = (u.lang ?? 'en') as Lang;
-  await notifyUsers([uid], { kind: 'digest', id: `digest_${date}`, vars: { count: events.length, list: digestBody(events, lang) }, url: `/?date=${date}` });
+  await notifyUsers([uid], { kind: 'digest', id: `digest_${date}`, vars: { count: events.length, list: digestBody(events, lang) }, url: notifyUrl.calendar(undefined, date) });
 }
 
 /** Sends tomorrow's digest to everyone whose digestTime fell in the 15 minutes ending at `now` (KL time). */

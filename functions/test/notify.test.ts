@@ -212,6 +212,18 @@ describe('invoice notifications', () => {
   });
 });
 
+describe('member notifications', () => {
+  it('a join request links admins to the members page; joining links to the calendar with the team', async () => {
+    await db.doc('users/frank').set({ name: 'Frank', phone: '+60120000009', lang: 'en', notify: {}, digestTime: '20:00', createdAt: Timestamp.now() });
+    await seedMember('frank', 'Frank', 'member', 'pending');
+    const [req] = await waitNotes('alice', 'joinRequest', 1, 'frank');
+    expect(req.url).toBe('/team/t1/members');
+    await db.doc(`teams/${T}/members/frank`).update({ status: 'active' });
+    const [j] = await waitNotes('frank', 'joined');
+    expect(j.url).toBe('/?team=t1');
+  });
+});
+
 describe('notifyUsers', () => {
   it('a repeated delivery with the same id writes one doc and keeps it read', async () => {
     const n = { kind: 'joined' as const, id: 'evt-1_joined', vars: { team: 'East Farm' }, url: '/' };
