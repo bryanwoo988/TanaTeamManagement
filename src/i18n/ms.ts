@@ -152,6 +152,7 @@ export const ms: Record<MessageKey, string> = {
   'notify.denied': 'Pemberitahuan disekat. Benarkan untuk apl ini dalam tetapan pelayar atau telefon.',
   'notify.dismiss': 'Nanti',
   'notify.pushFailed': 'Tidak dapat menghidupkan pemberitahuan.',
+  'notify.testError': 'Pemberitahuan ujian gagal dihantar.',
   'notify.settings': 'Tetapan pemberitahuan',
   'notify.required': 'Sentiasa hidup',
   'notify.digestTime': 'Masa ringkasan harian',

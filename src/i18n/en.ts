@@ -152,6 +152,7 @@ export const en: Record<MessageKey, string> = {
   'notify.denied': 'Notifications are blocked. Allow them for this app in your browser or phone settings.',
   'notify.dismiss': 'Not now',
   'notify.pushFailed': 'Could not turn on notifications.',
+  'notify.testError': 'Could not send the test notification.',
   'notify.settings': 'Notification settings',
   'notify.required': 'Always on',
   'notify.digestTime': 'Daily summary time',

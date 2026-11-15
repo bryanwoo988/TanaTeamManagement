@@ -39,3 +39,11 @@ export function useToasts(): Toast[] {
 export function toastError(): void {
   toast({ kind: 'err', title: t('ui.errorTitle'), body: t('ui.errorBody') });
 }
+
+/** Short technical detail of an error for the toast body, e.g. "functions/internal — INTERNAL" or "NotAllowedError". */
+export function errorDetail(e: unknown): string {
+  const err = e as { code?: unknown; name?: unknown; message?: unknown } | null;
+  const code = typeof err?.code === 'string' ? err.code : typeof err?.name === 'string' && err.name !== 'Error' ? err.name : '';
+  const msg = typeof err?.message === 'string' ? err.message : '';
+  return [code, msg].filter(Boolean).join(' — ').slice(0, 160);
+}

@@ -6,7 +6,7 @@ import { isActive } from '../../shared/access';
 import { klDate } from '../../shared/dates';
 import { useT } from '../i18n';
 import AsyncButton from '../ui/AsyncButton';
-import { toast } from '../ui/toast';
+import { errorDetail, toast } from '../ui/toast';
 import { enablePush, pushState, repairPush, resolvePushState, type PushState } from './push';
 
 /** Nudges people who would benefit from push (team members, or anyone with an upcoming job) to turn it on. */
@@ -39,7 +39,7 @@ export default function PushBanner() {
   if (!uid || state === 'on' || state === 'unsupported' || dismissed || !(member || assigned)) return null;
 
   async function enable() {
-    try { await enablePush(uid); } catch (e) { toast({ kind: 'err', title: t('notify.pushFailed') }); throw e; } finally { setState(await resolvePushState(uid)); }
+    try { await enablePush(uid); } catch (e) { toast({ kind: 'err', title: t('notify.pushFailed'), body: errorDetail(e) }); throw e; } finally { setState(await resolvePushState(uid)); }
   }
   // Session-only: the banner comes back on the next app open while push is not on.
   const dismiss = () => setDismissed(true);

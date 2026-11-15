@@ -5,7 +5,7 @@ import { sendTestPush } from '../api';
 import { useAuth } from '../auth/AuthProvider';
 import { useT, type MessageKey } from '../i18n';
 import AsyncButton from '../ui/AsyncButton';
-import { toast, toastError } from '../ui/toast';
+import { errorDetail, toast, toastError } from '../ui/toast';
 import { MANDATORY_KINDS, type NotifyKind } from '../../shared/types';
 import { disablePush, enablePush, pushState, resolvePushState, type PushState } from './push';
 
@@ -37,13 +37,13 @@ export default function NotifySettings() {
         const codes = [...new Set(results.map((r) => (r.statusCode ? String(r.statusCode) : '?')))].join(', ');
         setTestMsg({ ok: false, text: t('notify.testFailed', { codes }) });
       }
-    } catch (e) { toastError(); throw e; }
+    } catch (e) { toast({ kind: 'err', title: t('notify.testError'), body: errorDetail(e) }); throw e; }
   }
 
   async function togglePush() {
     try {
       if (state === 'on') await disablePush(uid); else await enablePush(uid);
-    } catch (e) { toast({ kind: 'err', title: t('notify.pushFailed') }); throw e; } finally { setState(await resolvePushState(uid)); }
+    } catch (e) { toast({ kind: 'err', title: t('notify.pushFailed'), body: errorDetail(e) }); throw e; } finally { setState(await resolvePushState(uid)); }
   }
 
   return (

@@ -150,6 +150,7 @@ export const zh = {
   'notify.denied': '通知已被浏览器屏蔽。请在浏览器或手机设置中允许本应用发送通知。',
   'notify.dismiss': '以后再说',
   'notify.pushFailed': '无法开启通知。',
+  'notify.testError': '测试通知发送失败。',
   'notify.settings': '通知设置',
   'notify.required': '必选',
   'notify.digestTime': '每日摘要时间',
