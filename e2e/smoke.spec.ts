@@ -92,9 +92,11 @@ test('team lifecycle: create, join, approve, assign, claim, reimburse, export, a
   await editor.getByLabel('Start', { exact: true }).fill('09:00');
   await editor.getByLabel('End', { exact: true }).fill('12:00');
   await editor.getByRole('checkbox', { name: 'Bob' }).check();
+  await alice.screenshot({ path: `${SHOTS}event-editor.png` });
   await editor.getByRole('button', { name: 'Save' }).click();
   await expect(editor).toHaveCount(0);
   await expect(alice.getByText('Stage setup')).toBeVisible();
+  await alice.screenshot({ path: `${SHOTS}calendar.png`, fullPage: true });
 
   // Bob's bell shows the in-app notification written by the trigger (real push cannot be delivered here).
   await expect(bell(bob)).toHaveAccessibleName('Notifications (1 unread)', { timeout: 20_000 });
@@ -109,6 +111,7 @@ test('team lifecycle: create, join, approve, assign, claim, reimburse, export, a
   await sheet.getByLabel('Vendor').fill('Kedai Makan');
   await sheet.locator('label', { hasText: 'Choose from album' }).locator('input[type=file]').setInputFiles(RECEIPT);
   await expect(sheet.locator('img.photo-preview')).toBeVisible();
+  await bob.screenshot({ path: `${SHOTS}invoice-editor.png` });
   await sheet.getByRole('button', { name: 'Save' }).click();
   await expect(sheet).toHaveCount(0, { timeout: 30_000 });
   const bobRow = bob.locator('a.inv-row', { hasText: 'Kedai Makan' });
@@ -118,6 +121,7 @@ test('team lifecycle: create, join, approve, assign, claim, reimburse, export, a
   await alice.goto(`/team/${teamId}/invoices`);
   await alice.locator('a.inv-row', { hasText: 'Kedai Makan' }).click();
   await expect(alice.getByRole('img', { name: 'Photo' })).toBeVisible({ timeout: 20_000 });
+  await alice.screenshot({ path: `${SHOTS}invoice-detail.png`, fullPage: true });
   await alice.getByRole('button', { name: 'Mark reimbursed' }).click();
   await expect(alice.locator('.pill.reimbursed')).toHaveText('Reimbursed');
 
@@ -136,6 +140,16 @@ test('team lifecycle: create, join, approve, assign, claim, reimburse, export, a
   await expect(alice.getByRole('button', { name: 'Copy code' })).toBeVisible();
   await expect(alice.locator('.invite-code')).toHaveText(/^[A-Z0-9-]{6,}$/, { timeout: 20_000 });
   await alice.screenshot({ path: `${SHOTS}members-admin.png`, fullPage: true });
+  await alice.goto(`/team/${teamId}/invoices/categories`);
+  await expect(alice.getByLabel('Add category')).toBeVisible();
+  await alice.screenshot({ path: `${SHOTS}categories.png`, fullPage: true });
+  await alice.goto('/settings/account');
+  await expect(alice.getByRole('heading').first()).toBeVisible();
+  await alice.screenshot({ path: `${SHOTS}account.png`, fullPage: true });
+  await alice.goto('/teams/new');
+  await expect(alice.getByLabel('Team name')).toBeVisible();
+  await alice.screenshot({ path: `${SHOTS}create-join.png`, fullPage: true });
+  await alice.goto(`/team/${teamId}/members`);
   await noSideScroll(alice, 'members');
 
   // Export opened from Invoices pre-selects invoices, and Back returns to Invoices.
