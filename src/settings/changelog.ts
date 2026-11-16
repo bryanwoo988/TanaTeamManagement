@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 /** Newest first. The newest entry's date is replaced by the real build time on the About page. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.5',
+    date: '2026-11-16 18:40',
+    items: {
+      zh: ['修正：iPhone 上底部导航栏有时会跑到屏幕中间'],
+      en: ['Fixed: on iPhone the bottom bar sometimes floated up to the middle of the screen'],
+      ms: ['Dibaiki: pada iPhone bar bawah kadangkala terapung ke tengah skrin'],
+    },
+  },
+  {
     version: '1.6.4',
     date: '2026-11-16 12:10',
     items: {

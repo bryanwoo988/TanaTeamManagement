@@ -38,8 +38,8 @@ describe('SettingsPage', () => {
     expect(await screen.findByRole('link', { name: /Notifications.*On/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Appearance/ })).toHaveAttribute('href', '/settings/appearance');
     expect(screen.getByRole('link', { name: /Share this app/ })).toHaveAttribute('href', '/settings/share');
-    expect(screen.getByRole('link', { name: /About.*v1\.6\.4/ })).toHaveAttribute('href', '/settings/about');
-    expect(screen.getByText('Version 1.6.4')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /About.*v1\.6\.5/ })).toHaveAttribute('href', '/settings/about');
+    expect(screen.getByText('Version 1.6.5')).toBeInTheDocument();
     const langRow = screen.getByRole('button', { name: /Language.*English/ });
     expect(screen.queryByRole('radio', { name: 'Melayu' })).toBeNull();
     await userEvent.click(langRow);
