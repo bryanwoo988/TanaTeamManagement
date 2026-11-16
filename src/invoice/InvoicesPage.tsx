@@ -76,7 +76,7 @@ export default function InvoicesPage() {
         <div className="title-row">
           <h1>{t('inv.title')}</h1>
           <div className="title-actions">
-            {finance && <Link className="icon-btn" to={`/team/${teamId}/export`} aria-label={t('export.link')} title={t('export.link')}><Download size={20} aria-hidden /></Link>}
+            {finance && <Link className="icon-btn" to={`/team/${teamId}/export?what=invoices`} aria-label={t('export.link')} title={t('export.link')}><Download size={20} aria-hidden /></Link>}
             {me?.role === 'admin' && <Link className="icon-btn" to={`/team/${teamId}/invoices/categories`} aria-label={t('inv.categories')} title={t('inv.categories')}><Tags size={20} aria-hidden /></Link>}
             <button type="button" className={`btn primary new-btn${uploadOff ? ' is-disabled' : ''}`} aria-disabled={uploadOff || undefined}
               aria-describedby={uploadOff ? 'upload-off-note' : undefined} onClick={() => { if (!uploadOff) setCreating(true); }}>

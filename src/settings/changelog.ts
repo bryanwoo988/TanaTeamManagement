@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 /** Newest first. The newest entry's date is replaced by the real build time on the About page. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.1',
+    date: '2026-11-17 00:20',
+    items: {
+      zh: ['导出、成员页面的「返回」会回到你刚才的页面（例如发票页），不再总是跳回日历', '从发票页进入导出时，默认选好「发票与报销」；单选项排版更整齐'],
+      en: ['"Back" on the Export and Members pages returns to the page you came from (e.g. Invoices) instead of always the calendar', 'Opening Export from Invoices pre-selects invoices; tidier option layout'],
+      ms: ['"Kembali" di halaman Eksport dan Ahli kembali ke halaman sebelumnya (cth. Invois), bukan sentiasa ke kalendar', 'Membuka Eksport dari Invois memilih invois secara lalai; susun atur pilihan lebih kemas'],
+    },
+  },
+  {
     version: '1.6.0',
     date: '2026-11-17 00:10',
     items: {

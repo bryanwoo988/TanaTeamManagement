@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
+import BackLink from '../nav/BackLink';
 import { useAuth } from '../auth/AuthProvider';
 import { useT } from '../i18n';
 import { canExportInvoices } from '../../shared/access';
@@ -32,7 +33,8 @@ export default function ExportPage() {
   const me = teamId ? member(teamId) : undefined;
   const canInvoices = !!teamId && canExportInvoices(me);
   const range = monthRange(klDate(new Date()));
-  const [what, setWhat] = useState<What>('calendar');
+  const [searchParams] = useSearchParams();
+  const [what, setWhat] = useState<What>(searchParams.get('what') === 'invoices' ? 'invoices' : 'calendar');
   const [format, setFormat] = useState<Format>('xlsx');
   const [from, setFrom] = useState(range.from);
   const [to, setTo] = useState(range.to);
@@ -82,17 +84,17 @@ export default function ExportPage() {
 
   return (
     <main className="stack">
-      <p><Link to="/">{t('back')}</Link></p>
+      <BackLink fallback={teamId && searchParams.get('what') === 'invoices' ? `/team/${teamId}/invoices` : '/'} />
       <h1>{t('export.title')}</h1>
       <section className="card stack">
         {canInvoices && (
-          <fieldset>
+          <fieldset className="radio-row">
             <legend>{t('export.what')}</legend>
             <label><input type="radio" name="what" checked={mode === 'calendar'} onChange={() => setWhat('calendar')} /> {t('cal.title')}</label>
             <label><input type="radio" name="what" checked={mode === 'invoices'} onChange={() => setWhat('invoices')} /> {t('inv.title')}</label>
           </fieldset>
         )}
-        <fieldset>
+        <fieldset className="radio-row">
           <legend>{t('export.format')}</legend>
           <label><input type="radio" name="format" checked={format === 'xlsx'} onChange={() => setFormat('xlsx')} /> Excel</label>
           <label><input type="radio" name="format" checked={format === 'pdf'} onChange={() => setFormat('pdf')} /> PDF</label>

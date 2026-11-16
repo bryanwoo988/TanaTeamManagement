@@ -272,3 +272,7 @@ progress { width: 100%; }
 .share-card { text-align: center; }
 .share-url { font-weight: 600; overflow-wrap: anywhere; margin: 0; }
 .share-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+fieldset.radio-row { display: flex; flex-wrap: wrap; gap: 8px 22px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 14px 12px; margin: 0; }
+fieldset.radio-row legend { padding: 0 6px; color: var(--muted); font-size: 0.9rem; }
+fieldset.radio-row label { display: inline-flex; align-items: center; gap: 8px; }

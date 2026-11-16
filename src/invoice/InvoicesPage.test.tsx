@@ -71,7 +71,7 @@ describe('InvoicesPage', () => {
     role = 'finance';
     setup();
     expect(listInvoices.mock.calls[0][2]).toEqual({ uid: 'me', all: true });
-    expect(screen.getByRole('link', { name: 'Export' })).toHaveAttribute('href', '/team/t1/export');
+    expect(screen.getByRole('link', { name: 'Export' })).toHaveAttribute('href', '/team/t1/export?what=invoices');
     expect(screen.queryByRole('link', { name: 'Invoice categories' })).not.toBeInTheDocument();
   });
 

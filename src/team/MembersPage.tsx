@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
+import BackLink from '../nav/BackLink';
 import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { addMemberByPhone, cancelPhoneInvite, getInviteCode, resetInviteCode } from '../api';
@@ -109,7 +110,7 @@ export default function MembersPage() {
 
   return (
     <main className="stack">
-      <p><Link to="/">{t('back')}</Link></p>
+      <BackLink />
       <h1>{t('team.members')}</h1>
 
       {admin && (

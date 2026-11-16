@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
+import BackLink from '../nav/BackLink';
 import { createTeam, joinTeam } from '../api';
 import { useT } from '../i18n';
 import { authErrorKey, detailFor } from '../auth/authErrors';
@@ -44,7 +44,7 @@ export default function CreateJoinPage() {
 
   return (
     <main className="stack">
-      <p><Link to="/">{t('back')}</Link></p>
+      <BackLink />
       {err && <p className="err" role="alert">{err}</p>}
       <section className="card">
         <h2>{t('team.createTitle')}</h2>
