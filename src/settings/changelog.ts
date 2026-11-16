@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 /** Newest first. The newest entry's date is replaced by the real build time on the About page. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.0',
+    date: '2026-11-17 00:10',
+    items: {
+      zh: ['发票页面重新设计：筛选改成一排可点的标签，日期范围收进「日期」按钮', '列表上方显示笔数和合计金额（财务还能看到待报销金额）', '按月份分组并显示每月合计；新增「我的」筛选', '新增、导出、类别按钮移到标题旁边'],
+      en: ['Invoices page redesigned: filters are now one-tap chips, and the date range folds under a "Date" button', 'The count and total of what is shown appear above the list (finance also sees the amount pending reimbursement)', 'Invoices are grouped by month with a monthly total; new "Mine" filter', 'New, Export and Categories moved next to the title'],
+      ms: ['Halaman invois direka semula: penapis kini cip satu ketik, julat tarikh dilipat di bawah butang "Tarikh"', 'Bilangan dan jumlah yang dipaparkan ditunjuk di atas senarai (kewangan juga melihat jumlah belum dibayar balik)', 'Invois dikumpul mengikut bulan dengan jumlah bulanan; penapis "Saya" baharu', 'Butang Baharu, Eksport dan Kategori dipindah ke sebelah tajuk'],
+    },
+  },
+  {
     version: '1.5.0',
     date: '2026-11-16 07:20',
     items: {

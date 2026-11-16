@@ -71,6 +71,7 @@ describe('InvoicesPage', () => {
     role = 'finance';
     setup();
     expect(listInvoices.mock.calls[0][2]).toEqual({ uid: 'me', all: true });
+    expect(screen.getByRole('link', { name: 'Export' })).toHaveAttribute('href', '/team/t1/export');
     expect(screen.queryByRole('link', { name: 'Invoice categories' })).not.toBeInTheDocument();
   });
 
@@ -80,21 +81,53 @@ describe('InvoicesPage', () => {
     expect(screen.getByRole('link', { name: 'Invoice categories' })).toHaveAttribute('href', '/team/t1/invoices/categories');
   });
 
-  it('subscribes once; filters by type, status and date narrow the shown rows', async () => {
+  it('subscribes once; chips for type, status, mine and a folded date range narrow the shown rows', async () => {
     setup();
-    act(() => feed([row('a', { vendor: 'V-A' }), row('b', { kind: 'company', status: undefined, vendor: 'V-B', date: '2026-11-20' }), row('c', { status: 'rejected', vendor: 'V-C', date: '2026-10-01' })]));
-    await userEvent.selectOptions(screen.getByLabelText('Type'), 'company');
+    act(() => feed([row('a', { vendor: 'V-A' }), row('b', { kind: 'company', status: undefined, vendor: 'V-B', date: '2026-11-20', uploadedBy: 'boss' }), row('c', { status: 'rejected', vendor: 'V-C', date: '2026-10-01' })]));
+    const type = screen.getByRole('group', { name: 'Type' });
+    const st = screen.getByRole('group', { name: 'Status' });
+    await userEvent.click(within(type).getByRole('button', { name: 'Company invoice' }));
     expect(screen.queryByText('V-A')).not.toBeInTheDocument();
     expect(screen.getByText('V-B')).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByLabelText('Type'), '');
-    await userEvent.selectOptions(screen.getByLabelText('Status'), 'rejected');
+    await userEvent.click(within(type).getByRole('button', { name: 'All' }));
+    await userEvent.click(within(type).getByRole('button', { name: 'Mine' }));
+    expect(screen.queryByText('V-B')).not.toBeInTheDocument();
+    expect(screen.getByText('V-A')).toBeInTheDocument();
+    await userEvent.click(within(type).getByRole('button', { name: 'Mine' }));
+    await userEvent.click(within(st).getByRole('button', { name: 'Rejected' }));
     expect(screen.getByText('V-C')).toBeInTheDocument();
     expect(screen.queryByText('V-A')).not.toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByLabelText('Status'), '');
+    await userEvent.click(within(st).getByRole('button', { name: 'Any status' }));
+    expect(screen.queryByLabelText('From')).toBeNull();
+    await userEvent.click(within(st).getByRole('button', { name: 'Date' }));
     await userEvent.type(screen.getByLabelText('From'), '2026-11-01');
     expect(screen.queryByText('V-C')).not.toBeInTheDocument();
     expect(screen.getByText('V-A')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Clear dates' }));
+    expect(screen.getByText('V-C')).toBeInTheDocument();
     expect(listInvoices).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the count and total of what is shown, grouped by month newest first; finance also sees pending', () => {
+    role = 'finance';
+    setup();
+    act(() => feed([row('a', { amountSen: 1000, date: '2026-10-05', vendor: 'Old' }), row('b', { amountSen: 2550, status: 'reimbursed', vendor: 'New' })]));
+    const summary = screen.getByTestId('inv-summary');
+    expect(summary).toHaveTextContent('2 items · Total');
+    expect(summary).toHaveTextContent('RM 35.50');
+    expect(summary).toHaveTextContent('Pending reimbursement: RM 10.00');
+    const heads = document.querySelectorAll('.inv-month-head');
+    expect(heads).toHaveLength(2);
+    expect(heads[0]).toHaveTextContent('November 2026');
+    expect(heads[0]).toHaveTextContent('RM 25.50');
+    expect(heads[1]).toHaveTextContent('October 2026');
+  });
+
+  it('members do not see the pending total or the export button', () => {
+    setup();
+    act(() => feed([row('a')]));
+    expect(screen.getByTestId('inv-summary')).not.toHaveTextContent('Pending reimbursement');
+    expect(screen.queryByRole('link', { name: 'Export' })).toBeNull();
   });
 
   it('a listener error shows an error, not an empty list', () => {
@@ -107,7 +140,7 @@ describe('InvoicesPage', () => {
   it('rows link to the detail page; New opens the editor', async () => {
     setup();
     act(() => feed([row('a')]));
-    expect(within(screen.getByRole('list')).getByRole('link')).toHaveAttribute('href', '/team/t1/invoices/a');
+    expect(screen.getByRole('link', { name: /Ah Seng/ })).toHaveAttribute('href', '/team/t1/invoices/a');
     await userEvent.click(screen.getByRole('button', { name: 'New' }));
     expect(screen.getByText('editor canProcess=false')).toBeInTheDocument();
   });
