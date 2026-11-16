@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { Link, useSearchParams } from 'react-router';
-import { Plus } from 'lucide-react';
+import { Download, Plus } from 'lucide-react';
 import { db } from '../firebase';
 import { useAuth } from '../auth/AuthProvider';
 import { useTeams } from '../team/TeamContext';
@@ -131,7 +131,7 @@ export default function CalendarPage() {
   return (
     <>
       {/* Invoices and notifications are in the bottom bar; export stays here (the only way to Personal export). */}
-      <header className="topbar"><TeamSwitcher /><Link to={current === 'personal' ? '/export' : `/team/${current}/export`}>{t('export.link')}</Link></header>
+      <header className="topbar"><TeamSwitcher /><Link className="icon-btn topbar-icon" to={current === 'personal' ? '/export' : `/team/${current}/export`} aria-label={t('export.link')} title={t('export.link')}><Download size={22} aria-hidden /></Link></header>
       <main className="stack" aria-hidden={overlay || undefined}>
         <h1>{t('cal.title')}</h1>
         <div className="chips" role="group" aria-label={t('cal.layers')}>
@@ -143,7 +143,8 @@ export default function CalendarPage() {
         </div>
         <MonthView month={month} selected={selected} events={visible} colors={colors} onSelect={setSelected} onMonth={changeMonth} />
         <DayList events={dayEvents} names={names} colors={colors} layerNames={layerNames} onOpen={(e) => setEditing({ event: e })} />
-        <button type="button" className="btn primary block" onClick={() => setEditing({ event: null })}><Plus size={20} aria-hidden />{t('cal.new')}</button>
+        <div className="fab-spacer" aria-hidden />
+        <button type="button" className="fab" aria-label={t('cal.new')} title={t('cal.new')} onClick={() => setEditing({ event: null })}><Plus size={26} aria-hidden /></button>
       </main>
       {editing && (
         <EventEditor

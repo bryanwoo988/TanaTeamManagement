@@ -91,7 +91,8 @@ test('team lifecycle: create, join, approve, assign, claim, reimburse, export, a
   await editor.getByLabel('Title', { exact: true }).fill('Stage setup');
   await editor.getByLabel('Start', { exact: true }).fill('09:00');
   await editor.getByLabel('End', { exact: true }).fill('12:00');
-  await editor.getByRole('checkbox', { name: 'Bob' }).check();
+  await editor.locator('label.chip-check', { hasText: 'Bob' }).click();
+  await expect(editor.getByRole('checkbox', { name: 'Bob' })).toBeChecked();
   await alice.screenshot({ path: `${SHOTS}event-editor.png` });
   await editor.getByRole('button', { name: 'Save' }).click();
   await expect(editor).toHaveCount(0);
@@ -109,6 +110,7 @@ test('team lifecycle: create, join, approve, assign, claim, reimburse, export, a
   const sheet = bob.getByRole('dialog', { name: 'New' });
   await sheet.getByLabel('Amount (RM)').fill('12.50');
   await sheet.getByLabel('Vendor').fill('Kedai Makan');
+  await sheet.getByLabel('Category').selectOption({ index: 6 });
   await sheet.locator('label', { hasText: 'Choose from album' }).locator('input[type=file]').setInputFiles(RECEIPT);
   await expect(sheet.locator('img.photo-preview')).toBeVisible();
   await bob.screenshot({ path: `${SHOTS}invoice-editor.png` });
@@ -144,6 +146,7 @@ test('team lifecycle: create, join, approve, assign, claim, reimburse, export, a
   await expect(alice.getByLabel('Add category')).toBeVisible();
   await alice.screenshot({ path: `${SHOTS}categories.png`, fullPage: true });
   await alice.goto('/settings/account');
+  await expect(alice.getByLabel('Name', { exact: true })).toHaveValue('Alice');
   await expect(alice.getByRole('heading').first()).toBeVisible();
   await alice.screenshot({ path: `${SHOTS}account.png`, fullPage: true });
   await alice.goto('/teams/new');

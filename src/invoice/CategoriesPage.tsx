@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
+import { Trash2 } from 'lucide-react';
+import BackLink from '../nav/BackLink';
+import { confirmSheet } from '../ui/confirm';
 import { useT } from '../i18n';
 import { isActive } from '../../shared/access';
 import { useTeams } from '../team/TeamContext';
@@ -14,7 +17,8 @@ const MAX_CATEGORIES = 50;
 export default function CategoriesPage() {
   const { teamId = '' } = useParams();
   const { t } = useT();
-  const me = useTeams().member(teamId);
+  const { member, loaded } = useTeams();
+  const me = member(teamId);
   const saved = useTeamInfo(teamId).categories;
   const [list, setList] = useState(saved);
   const [draft, setDraft] = useState('');
@@ -25,6 +29,10 @@ export default function CategoriesPage() {
     setList(next);
     toast({ kind: 'ok', title: t('inv.saved') });
   }
+  async function remove(c: string) {
+    if (!(await confirmSheet({ title: t('inv.categoryRemove', { name: c }), confirmLabel: t('delete'), danger: true }))) return;
+    await persist(list.filter((x) => x !== c)).catch(() => {});
+  }
   async function save() {
     const name = draft.trim().slice(0, 60);
     if (!name) return; // nothing to add
@@ -34,20 +42,24 @@ export default function CategoriesPage() {
 
   return (
     <main className="stack">
-      <p><Link to={`/team/${teamId}/invoices`}>{t('back')}</Link></p>
+      <BackLink fallback={`/team/${teamId}/invoices`} />
       <h1>{t('inv.categories')}</h1>
-      {!(isActive(me) && me?.role === 'admin') ? <p className="muted">{t('inv.adminOnly')}</p> : (
+      {loaded === false ? <p className="muted">{t('loading')}</p> : !(isActive(me) && me?.role === 'admin') ? <p className="muted">{t('inv.adminOnly')}</p> : (
         <>
-          <ul className="plain-list">
+          <div className="list-group">
             {list.map((c) => (
-              <li key={c}>
-                <span>{c}</span>
-                <AsyncButton className="btn danger" onClick={() => persist(list.filter((x) => x !== c))}>{t('inv.categoryRemove', { name: c })}</AsyncButton>
-              </li>
+              <div key={c} className="list-row">
+                <span className="list-label">{c}</span>
+                <button type="button" className="icon-btn danger-icon" aria-label={t('inv.categoryRemove', { name: c })} title={t('inv.categoryRemove', { name: c })} onClick={() => remove(c)}>
+                  <Trash2 size={20} aria-hidden />
+                </button>
+              </div>
             ))}
-          </ul>
-          <label>{t('inv.categoryAdd')}<input value={draft} maxLength={60} onChange={(e) => setDraft(e.target.value)} /></label>
-          <AsyncButton onClick={save}>{t('save')}</AsyncButton>
+          </div>
+          <section className="card stack">
+            <label>{t('inv.categoryAdd')}<input value={draft} maxLength={60} onChange={(e) => setDraft(e.target.value)} /></label>
+            <AsyncButton onClick={save}>{t('save')}</AsyncButton>
+          </section>
         </>
       )}
     </main>

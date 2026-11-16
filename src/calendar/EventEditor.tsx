@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import { useT } from '../i18n';
 import { minutesOf } from '../../shared/dates';
 import AsyncButton from '../ui/AsyncButton';
@@ -78,7 +79,10 @@ export default function EventEditor({ event, date, layers, initialLayer, members
     <div className="sheet-backdrop" onClick={onClose}>
       <div ref={sheetRef} className="sheet" role="dialog" aria-modal="true" aria-label={event ? t('cal.edit') : t('cal.new')} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" aria-hidden />
-        <h2 className="sheet-title">{event ? t('cal.edit') : t('cal.new')}</h2>
+        <div className="sheet-head">
+          <h2 className="sheet-title">{event ? t('cal.edit') : t('cal.new')}</h2>
+          <button type="button" className="icon-btn sheet-close" aria-label={t('common.close')} onClick={onClose}><X size={22} aria-hidden /></button>
+        </div>
         {readOnly && <p className="muted">{t('cal.readOnly')}</p>}
         <div className="stack">
           {!event && layers.length > 1 && (
@@ -92,28 +96,29 @@ export default function EventEditor({ event, date, layers, initialLayer, members
           <label>{t('cal.date')}<input type="date" value={day} disabled={readOnly} onChange={(e) => setDay(e.target.value)} /></label>
           <label className="check"><input type="checkbox" checked={allDay} disabled={readOnly} onChange={(e) => setAllDay(e.target.checked)} />{t('cal.allDay')}</label>
           {!allDay && (
-            <>
+            <div className="pair">
               <label>{t('cal.start')}<input type="time" value={start} disabled={readOnly} onChange={(e) => setStart(e.target.value)} /></label>
               <label>{t('cal.end')}<input type="time" value={end} disabled={readOnly} onChange={(e) => setEnd(e.target.value)} /></label>
-            </>
+            </div>
           )}
           <label>{t('cal.place')}<input value={place} disabled={readOnly} onChange={(e) => setPlace(e.target.value)} /></label>
           <label>{t('cal.notes')}<textarea value={notes} disabled={readOnly} onChange={(e) => setNotes(e.target.value)} /></label>
           {isTeam && (
-            <fieldset>
+            <fieldset className="chip-field">
               <legend>{t('cal.assignees')}</legend>
-              {people.map((p) => (
-                <label key={p.uid} className="check">
-                  <input type="checkbox" checked={assignees.includes(p.uid)} disabled={!canPick} onChange={() => toggle(p.uid)} />{p.name}
-                </label>
-              ))}
+              <div className="chips">
+                {people.map((p) => (
+                  <label key={p.uid} className="chip chip-check">
+                    <input type="checkbox" className="sr-only" checked={assignees.includes(p.uid)} disabled={!canPick} onChange={() => toggle(p.uid)} />{p.name}
+                  </label>
+                ))}
+              </div>
             </fieldset>
           )}
           {err && <p className="err" role="alert">{err}</p>}
           {!readOnly && <AsyncButton onClick={save}>{t('save')}</AsyncButton>}
           {!readOnly && event && <button type="button" className="btn block" onClick={() => onCopy(event)}>{t('cal.copy')}</button>}
           {!readOnly && event && <AsyncButton className="btn danger block" onClick={remove}>{t('delete')}</AsyncButton>}
-          <button type="button" className="btn block" onClick={onClose}>{t('common.close')}</button>
         </div>
       </div>
     </div>

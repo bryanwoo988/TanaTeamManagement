@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { X } from 'lucide-react';
 import { useT } from '../i18n';
 import { klDate } from '../../shared/dates';
 import { parseRM } from '../../shared/money';
@@ -28,7 +29,7 @@ export default function InvoiceEditor({ teamId, invoice, canProcess, members, ca
   const [amount, setAmount] = useState(invoice ? (invoice.amountSen / 100).toFixed(2) : '');
   const [date, setDate] = useState(invoice?.date ?? klDate(new Date()));
   const [vendor, setVendor] = useState(invoice?.vendor ?? '');
-  const [category, setCategory] = useState(invoice?.category ?? categories[0] ?? '');
+  const [category, setCategory] = useState(invoice?.category ?? (categories.length === 1 ? categories[0] : ''));
   const [notes, setNotes] = useState(invoice?.notes ?? '');
   const [related, setRelated] = useState<string[]>(invoice?.relatedUids ?? []);
   const [eventId, setEventId] = useState(invoice?.eventId ?? '');
@@ -89,6 +90,7 @@ export default function InvoiceEditor({ teamId, invoice, canProcess, members, ca
     if (sen > MAX_SEN) fail(t('inv.amountTooBig'));
     if (!date) fail(t('inv.dateRequired'));
     if (!invoice && !photo) fail(t('inv.photoRequired'));
+    if (!category) fail(t('inv.categoryRequired'));
     try {
       setProgress(0);
       await saveInvoice(teamId, invoice?.id ?? null, {
@@ -121,7 +123,10 @@ export default function InvoiceEditor({ teamId, invoice, canProcess, members, ca
     <div className="sheet-backdrop" onClick={() => { if (!saving) onClose(); }}>
       <div ref={sheetRef} className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" aria-hidden />
-        <h2 className="sheet-title">{title}</h2>
+        <div className="sheet-head">
+          <h2 className="sheet-title">{title}</h2>
+          <button type="button" className="icon-btn sheet-close" aria-label={t('common.close')} disabled={saving} onClick={onClose}><X size={22} aria-hidden /></button>
+        </div>
         <div className="stack">
           {canProcess && !invoice && (
             <label>{t('inv.kind')}
@@ -136,6 +141,7 @@ export default function InvoiceEditor({ teamId, invoice, canProcess, members, ca
           <label>{t('inv.vendor')}<input value={vendor} maxLength={120} onChange={(e) => setVendor(e.target.value)} /></label>
           <label>{t('inv.category')}
             <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              {!category && <option value="" disabled>{t('inv.categoryChoose')}</option>}
               {cats.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
@@ -150,13 +156,15 @@ export default function InvoiceEditor({ teamId, invoice, canProcess, members, ca
             </label>
           )}
           {canProcess && kind === 'company' && (
-            <fieldset>
+            <fieldset className="chip-field">
               <legend>{t('inv.relatedPeople')}</legend>
-              {members.map((p) => (
-                <label key={p.uid} className="check">
-                  <input type="checkbox" checked={related.includes(p.uid)} onChange={() => toggleRelated(p.uid)} />{p.name}
-                </label>
-              ))}
+              <div className="chips">
+                {members.map((p) => (
+                  <label key={p.uid} className="chip chip-check">
+                    <input type="checkbox" className="sr-only" checked={related.includes(p.uid)} onChange={() => toggleRelated(p.uid)} />{p.name}
+                  </label>
+                ))}
+              </div>
             </fieldset>
           )}
           <div className="photo-pick">
@@ -176,7 +184,6 @@ export default function InvoiceEditor({ teamId, invoice, canProcess, members, ca
             </div>
           )}
           <AsyncButton disabled={reading} onClick={save}>{t('save')}</AsyncButton>
-          <button type="button" className="btn block" disabled={saving} onClick={onClose}>{t('common.close')}</button>
         </div>
       </div>
     </div>

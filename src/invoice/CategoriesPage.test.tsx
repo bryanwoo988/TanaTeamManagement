@@ -8,6 +8,7 @@ vi.mock('./data', () => ({ saveCategories: (...a: unknown[]) => saveCategories(.
 let role = 'admin';
 vi.mock('../team/TeamContext', () => ({ useTeams: () => ({ member: () => ({ role, status: 'active' }) }) }));
 const info = { categories: ['Fuel', 'Parts'], members: [] };
+vi.mock('../ui/confirm', () => ({ confirmSheet: () => Promise.resolve(true) }));
 vi.mock('./useTeamInfo', () => ({ useTeamInfo: () => info }));
 
 import CategoriesPage from './CategoriesPage';

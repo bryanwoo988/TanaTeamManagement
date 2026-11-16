@@ -10,6 +10,8 @@ export interface TeamState {
   /** A team id, or 'personal'. */
   current: string | 'personal';
   setCurrent: (id: string) => void;
+  /** False until the user's team index has been read once. */
+  loaded?: boolean;
   /** The signed-in user's own record in a team (role/status/canUpload), from the users/{uid}/teams index. */
   member: (teamId: string) => MemberDoc | undefined;
 }
@@ -63,7 +65,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const valid = stored === 'personal' || !loaded || isActive(teams.find((t) => t.teamId === stored));
       current = valid ? stored : 'personal';
     }
-    return { teams, current, setCurrent, member };
+    return { teams, current, setCurrent, member, loaded };
   }, [teams, stored, loaded, uid, setCurrent]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -38,6 +38,7 @@ describe('InvoiceEditor', () => {
     await userEvent.selectOptions(type, 'company');
     await userEvent.click(screen.getByRole('checkbox', { name: 'Bob' }));
     await userEvent.type(screen.getByLabelText('Amount (RM)'), '10');
+    await userEvent.selectOptions(screen.getByLabelText('Category'), 'Fuel');
     await pick('Choose from album');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(saveInvoice).toHaveBeenCalledWith('t1', null, expect.objectContaining({ kind: 'company', relatedUids: ['bob'] }), jpeg, expect.any(Function), expect.any(Object));
@@ -49,6 +50,16 @@ describe('InvoiceEditor', () => {
     await userEvent.type(screen.getByLabelText('Amount (RM)'), 'abc');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('valid amount');
+    expect(saveInvoice).not.toHaveBeenCalled();
+  });
+
+  it('requires choosing a category on a new invoice (nothing is preselected)', async () => {
+    render(<InvoiceEditor {...base} canProcess={false} />);
+    expect(screen.getByLabelText('Category')).toHaveValue('');
+    await userEvent.type(screen.getByLabelText('Amount (RM)'), '12.50');
+    await pick('Take photo');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('choose a category');
     expect(saveInvoice).not.toHaveBeenCalled();
   });
 
@@ -93,6 +104,7 @@ describe('InvoiceEditor', () => {
     render(<><InvoiceEditor {...base} canProcess={false} onClose={onClose} /><Toaster /></>);
     await pick('Take photo');
     await userEvent.type(screen.getByLabelText('Amount (RM)'), '9');
+    await userEvent.selectOptions(screen.getByLabelText('Category'), 'Fuel');
     await userEvent.type(screen.getByLabelText('Vendor'), 'Shop');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByText('Something went wrong')).toBeInTheDocument();
@@ -108,6 +120,7 @@ describe('InvoiceEditor', () => {
     render(<><InvoiceEditor {...base} canProcess={false} /><Toaster /></>);
     await pick('Take photo');
     await userEvent.type(screen.getByLabelText('Amount (RM)'), '9');
+    await userEvent.selectOptions(screen.getByLabelText('Category'), 'Fuel');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     await screen.findByText('Something went wrong');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -118,6 +131,7 @@ describe('InvoiceEditor', () => {
     render(<InvoiceEditor {...base} canProcess={false} />);
     await pick('Take photo');
     await userEvent.type(screen.getByLabelText('Amount (RM)'), '9');
+    await userEvent.selectOptions(screen.getByLabelText('Category'), 'Fuel');
     await userEvent.clear(screen.getByLabelText('Date'));
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('date');
@@ -146,6 +160,7 @@ describe('InvoiceEditor', () => {
     render(<InvoiceEditor {...base} canProcess={false} />);
     await pick('Take photo');
     await userEvent.type(screen.getByLabelText('Amount (RM)'), '9');
+    await userEvent.selectOptions(screen.getByLabelText('Category'), 'Fuel');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByRole('progressbar')).toHaveAttribute('value', '40');
   });
@@ -156,6 +171,7 @@ describe('InvoiceEditor', () => {
     await userEvent.selectOptions(await screen.findByLabelText('Related work (optional)'), 'e1');
     await pick('Take photo');
     await userEvent.type(screen.getByLabelText('Amount (RM)'), '5');
+    await userEvent.selectOptions(screen.getByLabelText('Category'), 'Fuel');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(saveInvoice.mock.calls[0][2]).toMatchObject({ eventId: 'e1' });
   });

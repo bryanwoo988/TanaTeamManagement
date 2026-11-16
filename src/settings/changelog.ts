@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 /** Newest first. The newest entry's date is replaced by the real build time on the About page. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.8.0',
+    date: '2026-11-17 07:51',
+    items: {
+      zh: ['设置 → 账户可以修改自己的名字', '新增发票时类别不再默认选第一个，必须自己选', '发票详情重新排版：报销、退回分开，删除改成底部小按钮', '「开启通知」提示缩成一行，只在日历页显示', '日历：新增工作改成右下角的 ＋ 按钮，导出改成图标', '工作表单：开始和结束时间并排，负责人改成可点的名字标签，右上角 ✕ 关闭', '发票类别：移除改成垃圾桶图标并先确认', '各页面的「返回」样式统一'],
+      en: ['Settings → Account lets you change your name', 'A new invoice no longer preselects the first category; you must choose one', 'Invoice detail re-laid out: reimburse and reject are separate, delete is a small button at the bottom', 'The "turn on notifications" prompt is one line and only on the calendar', 'Calendar: add work with the ＋ button at the bottom right; export is an icon', 'Work form: start and end side by side, assignees as tappable name chips, ✕ to close', 'Invoice categories: remove is a bin icon that asks first', 'One "Back" style on every page'],
+      ms: ['Tetapan → Akaun membolehkan anda menukar nama', 'Invois baharu tidak lagi memilih kategori pertama secara automatik; anda mesti memilih', 'Butiran invois disusun semula: bayar balik dan tolak diasingkan, padam ialah butang kecil di bawah', 'Gesaan "hidupkan pemberitahuan" kini satu baris dan hanya di kalendar', 'Kalendar: tambah kerja dengan butang ＋ di kanan bawah; eksport ialah ikon', 'Borang kerja: mula dan tamat sebelah-menyebelah, petugas sebagai cip nama, ✕ untuk tutup', 'Kategori invois: buang ialah ikon tong yang bertanya dahulu', 'Satu gaya "Kembali" di semua halaman'],
+    },
+  },
+  {
     version: '1.7.0',
     date: '2026-11-16 22:52',
     items: {

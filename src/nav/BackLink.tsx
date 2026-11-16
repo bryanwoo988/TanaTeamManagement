@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { ChevronLeft } from 'lucide-react';
 import { useT } from '../i18n';
 
 /**
@@ -13,5 +14,5 @@ export default function BackLink({ fallback = '/' }: { fallback?: string }) {
     const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
     if (idx > 0) { e.preventDefault(); navigate(-1); }
   };
-  return <p><Link to={fallback} onClick={onClick}>{t('back')}</Link></p>;
+  return <Link className="back-link" to={fallback} onClick={onClick}><ChevronLeft size={20} aria-hidden /><span>{t('back')}</span></Link>;
 }

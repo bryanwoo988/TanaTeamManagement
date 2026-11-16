@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Navigate, Outlet, useMatch, useNavigate } from 'react-router';
+import { Navigate, Outlet, useLocation, useMatch, useNavigate } from 'react-router';
 import { useAuth } from './auth/AuthProvider';
 import LoginPage from './auth/LoginPage';
 import ProfileSetup from './auth/ProfileSetup';
@@ -33,6 +33,7 @@ function Gate() {
   const { user, profile, loading, error, retry } = useAuth();
   const { t } = useT();
   const nav = useNavigate();
+  const { pathname } = useLocation();
   const joinMatch = useMatch('/join/:code');
   const joinCode = joinMatch?.params.code;
   // Signed out on an invite link: remember the code so it survives sign-in (even if the page reloads).
@@ -60,7 +61,7 @@ function Gate() {
     );
   }
   if (!profile) return <ProfileSetup />;
-  return <TeamProvider><ScrollToTop /><PushBanner /><Outlet /><BottomNav /></TeamProvider>;
+  return <TeamProvider><ScrollToTop />{pathname === '/' && <PushBanner />}<Outlet /><BottomNav /></TeamProvider>;
 }
 
 function Shell() {
