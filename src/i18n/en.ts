@@ -258,6 +258,7 @@ export const en: Record<MessageKey, string> = {
   'inv.filterDate': 'Date',
   'inv.clearDates': 'Clear dates',
   'inv.summary': '{n} items · Total',
+  'inv.summaryOne': '1 item · Total',
   'inv.pendingTotal': 'Pending reimbursement: {total}',
   'export.title': 'Export',
   'export.link': 'Export',

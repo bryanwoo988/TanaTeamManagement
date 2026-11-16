@@ -31,6 +31,12 @@ async function login(page: Page, local: string, name: string) {
 /** The notifications tab in the bottom nav, which carries the unread count. */
 const bell = (page: Page) => page.getByRole('navigation', { name: 'Main' }).locator('a[href="/notifications"]');
 
+/** The page must never scroll sideways on a phone. */
+async function noSideScroll(page: Page, where: string) {
+  const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(over, `${where} is wider than the screen`).toBeLessThanOrEqual(0);
+}
+
 async function pickTeam(page: Page, team: string) {
   await page.getByRole('button', { name: 'Switch team' }).first().click();
   await page.getByRole('option', { name: team }).click();
@@ -119,21 +125,24 @@ test('team lifecycle: create, join, approve, assign, claim, reimburse, export, a
 
   // Screenshots of the invoices list (finance view and member view) and the members page.
   await alice.goto(`/team/${teamId}/invoices`);
-  await expect(alice.getByTestId('inv-summary')).toContainText('1 items');
+  await expect(alice.getByTestId('inv-summary')).toContainText('1 item ·');
   await alice.screenshot({ path: `${SHOTS}invoices-admin.png`, fullPage: true });
   await alice.getByRole('button', { name: 'Date' }).click();
   await alice.screenshot({ path: `${SHOTS}invoices-admin-dates.png`, fullPage: true });
+  await noSideScroll(alice, 'invoices with the date range open');
   await bob.screenshot({ path: `${SHOTS}invoices-member.png`, fullPage: true });
   await alice.goto(`/team/${teamId}/members`);
   await expect(alice.getByRole('button', { name: 'Copy code' })).toBeVisible();
   await expect(alice.locator('.invite-code')).toHaveText(/^[A-Z0-9-]{6,}$/, { timeout: 20_000 });
   await alice.screenshot({ path: `${SHOTS}members-admin.png`, fullPage: true });
+  await noSideScroll(alice, 'members');
 
   // Export opened from Invoices pre-selects invoices, and Back returns to Invoices.
   await alice.goto(`/team/${teamId}/invoices`);
   await alice.getByRole('link', { name: 'Export' }).click();
   await expect(alice.getByRole('radio', { name: 'Invoices' })).toBeChecked();
   await alice.screenshot({ path: `${SHOTS}export.png`, fullPage: true });
+  await noSideScroll(alice, 'export');
   await alice.getByRole('link', { name: 'Back' }).click();
   await expect(alice).toHaveURL(new RegExp(`/team/${teamId}/invoices$`));
   await alice.getByRole('link', { name: 'Export' }).click();

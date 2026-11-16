@@ -10,8 +10,17 @@ export interface ChangelogEntry {
 /** Newest first. The newest entry's date is replaced by the real build time on the About page. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.4',
+    date: '2026-11-16 12:10',
+    items: {
+      zh: ['修正：发票页打开「日期」筛选后，页面不再左右晃动', '修正：更新记录里 v1.6.0–v1.6.2 的时间', '只有一笔发票时的文字更自然'],
+      en: ['Fixed: the Invoices page no longer scrolls sideways when the Date filter is open', 'Fixed: the times shown for v1.6.0–v1.6.2 in this list', 'Tidier wording when there is only one invoice'],
+      ms: ['Dibaiki: halaman Invois tidak lagi bergerak ke sisi apabila penapis Tarikh dibuka', 'Dibaiki: masa yang ditunjukkan untuk v1.6.0–v1.6.2 dalam senarai ini', 'Ayat lebih kemas apabila hanya ada satu invois'],
+    },
+  },
+  {
     version: '1.6.3',
-    date: '2026-11-17 00:40',
+    date: '2026-11-16 08:32',
     items: {
       zh: ['成员页的邀请卡片重新设计：邀请码放大显示，旁边一键复制；「分享邀请」变成整行大按钮；移除「复制链接」', '没有分享功能的浏览器，按「分享邀请」会复制整段邀请信息（含链接）'],
       en: ['Invite card on the Members page redesigned: big invite code with a one-tap copy icon, a full-width Share invite button, and Copy link removed', 'Where the browser has no share sheet, Share invite copies the whole invite message with the link'],
@@ -20,7 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: '1.6.2',
-    date: '2026-11-17 00:30',
+    date: '2026-11-16 08:19',
     items: {
       zh: ['设置里的「语言」改成一行，只显示当前语言；点开再从列表选择'],
       en: ['Language in Settings is now one row showing the current language; tap it to pick from a list'],
@@ -29,7 +38,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: '1.6.1',
-    date: '2026-11-17 00:20',
+    date: '2026-11-16 08:14',
     items: {
       zh: ['导出、成员页面的「返回」会回到你刚才的页面（例如发票页），不再总是跳回日历', '从发票页进入导出时，默认选好「发票与报销」；单选项排版更整齐'],
       en: ['"Back" on the Export and Members pages returns to the page you came from (e.g. Invoices) instead of always the calendar', 'Opening Export from Invoices pre-selects invoices; tidier option layout'],
@@ -38,7 +47,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: '1.6.0',
-    date: '2026-11-17 00:10',
+    date: '2026-11-16 08:06',
     items: {
       zh: ['发票页面重新设计：筛选改成一排可点的标签，日期范围收进「日期」按钮', '列表上方显示笔数和合计金额（财务还能看到待报销金额）', '按月份分组并显示每月合计；新增「我的」筛选', '新增、导出、类别按钮移到标题旁边'],
       en: ['Invoices page redesigned: filters are now one-tap chips, and the date range folds under a "Date" button', 'The count and total of what is shown appear above the list (finance also sees the amount pending reimbursement)', 'Invoices are grouped by month with a monthly total; new "Mine" filter', 'New, Export and Categories moved next to the title'],

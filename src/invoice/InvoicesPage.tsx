@@ -115,7 +115,7 @@ export default function InvoicesPage() {
         {!failed && !!shown?.length && (
           <>
             <p className="inv-summary" data-testid="inv-summary">
-              <span>{t('inv.summary', { n: shown.length })}</span>
+              <span>{shown.length === 1 ? t('inv.summaryOne') : t('inv.summary', { n: shown.length })}</span>
               <strong>{formatRM(sum(shown))}</strong>
               {finance && pendingSen > 0 && <span className="muted small">{t('inv.pendingTotal', { total: formatRM(pendingSen) })}</span>}
             </p>

@@ -256,6 +256,7 @@ export const zh = {
   'inv.filterDate': '日期',
   'inv.clearDates': '清除日期',
   'inv.summary': '{n} 笔 · 合计',
+  'inv.summaryOne': '1 笔 · 合计',
   'inv.pendingTotal': '待报销：{total}',
   'export.title': '导出',
   'export.link': '导出',

@@ -258,6 +258,7 @@ export const ms: Record<MessageKey, string> = {
   'inv.filterDate': 'Tarikh',
   'inv.clearDates': 'Kosongkan tarikh',
   'inv.summary': '{n} item · Jumlah',
+  'inv.summaryOne': '1 item · Jumlah',
   'inv.pendingTotal': 'Belum dibayar balik: {total}',
   'export.title': 'Eksport',
   'export.link': 'Eksport',
