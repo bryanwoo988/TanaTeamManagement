@@ -117,9 +117,26 @@ test('team lifecycle: create, join, approve, assign, claim, reimburse, export, a
   // Bob sees the new status.
   await expect(bobRow).toContainText('Reimbursed', { timeout: 20_000 });
 
-  // Alice exports the invoices to Excel.
-  await alice.goto(`/team/${teamId}/export`);
-  await alice.getByRole('radio', { name: 'Invoices' }).check();
+  // Screenshots of the invoices list (finance view and member view) and the members page.
+  await alice.goto(`/team/${teamId}/invoices`);
+  await expect(alice.getByTestId('inv-summary')).toContainText('1 items');
+  await alice.screenshot({ path: `${SHOTS}invoices-admin.png`, fullPage: true });
+  await alice.getByRole('button', { name: 'Date' }).click();
+  await alice.screenshot({ path: `${SHOTS}invoices-admin-dates.png`, fullPage: true });
+  await bob.screenshot({ path: `${SHOTS}invoices-member.png`, fullPage: true });
+  await alice.goto(`/team/${teamId}/members`);
+  await expect(alice.getByRole('button', { name: 'Copy code' })).toBeVisible();
+  await expect(alice.locator('.invite-code')).toHaveText(/^[A-Z0-9-]{6,}$/, { timeout: 20_000 });
+  await alice.screenshot({ path: `${SHOTS}members-admin.png`, fullPage: true });
+
+  // Export opened from Invoices pre-selects invoices, and Back returns to Invoices.
+  await alice.goto(`/team/${teamId}/invoices`);
+  await alice.getByRole('link', { name: 'Export' }).click();
+  await expect(alice.getByRole('radio', { name: 'Invoices' })).toBeChecked();
+  await alice.screenshot({ path: `${SHOTS}export.png`, fullPage: true });
+  await alice.getByRole('link', { name: 'Back' }).click();
+  await expect(alice).toHaveURL(new RegExp(`/team/${teamId}/invoices$`));
+  await alice.getByRole('link', { name: 'Export' }).click();
   const [download] = await Promise.all([
     alice.waitForEvent('download'),
     alice.getByRole('button', { name: 'Export', exact: true }).click(),
@@ -130,7 +147,9 @@ test('team lifecycle: create, join, approve, assign, claim, reimburse, export, a
 
   // Alice switches to Melayu and OLED Black (dark mode), then screenshots for review.
   await alice.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Settings' }).click();
-  await alice.getByRole('button', { name: 'Melayu' }).click();
+  await alice.getByRole('button', { name: /Language/ }).click();
+  await alice.screenshot({ path: `${SHOTS}language-sheet.png` });
+  await alice.getByRole('radio', { name: 'Melayu' }).click();
   await expect(alice.getByRole('heading', { name: 'Tetapan', exact: true })).toBeVisible();
   await alice.getByRole('link', { name: /Paparan/ }).click();
   await expect(alice.getByRole('heading', { name: 'Paparan', exact: true })).toBeVisible();
