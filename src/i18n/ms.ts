@@ -125,6 +125,7 @@ export const ms: Record<MessageKey, string> = {
   'team.copyLink': 'Salin pautan',
   'team.shareInvite': 'Kongsi jemputan',
   'team.copied': 'Disalin',
+  'team.inviteHint': 'Rakan sekerja tekan pautan dan log masuk untuk memohon menyertai; anda luluskan di bawah.',
   'team.inviteShareText': 'Anda dijemput menyertai {team} di Tana Team. Ketik pautan untuk menyertai, atau masukkan kod jemputan {code} dalam aplikasi.',
   'team.inviteShareTitle': 'Sertai {team}',
   'join.sending': 'Menghantar permintaan anda…',

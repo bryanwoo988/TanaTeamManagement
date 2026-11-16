@@ -123,6 +123,7 @@ export const zh = {
   'team.copyLink': '复制链接',
   'team.shareInvite': '分享邀请',
   'team.copied': '已复制',
+  'team.inviteHint': '同事点链接并登录后会申请加入，你在下面批准即可。',
   'team.inviteShareText': '邀请你加入「{team}」团队。点链接加入，或在 App 里输入邀请码 {code}。',
   'team.inviteShareTitle': '加入 {team}',
   'join.sending': '正在申请加入…',

@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 /** Newest first. The newest entry's date is replaced by the real build time on the About page. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.3',
+    date: '2026-11-17 00:40',
+    items: {
+      zh: ['成员页的邀请卡片重新设计：邀请码放大显示，旁边一键复制；「分享邀请」变成整行大按钮；移除「复制链接」', '没有分享功能的浏览器，按「分享邀请」会复制整段邀请信息（含链接）'],
+      en: ['Invite card on the Members page redesigned: big invite code with a one-tap copy icon, a full-width Share invite button, and Copy link removed', 'Where the browser has no share sheet, Share invite copies the whole invite message with the link'],
+      ms: ['Kad jemputan di halaman Ahli direka semula: kod jemputan besar dengan ikon salin satu ketik, butang Kongsi jemputan selebar skrin, dan Salin pautan dibuang', 'Jika pelayar tiada helaian kongsi, Kongsi jemputan menyalin keseluruhan mesej jemputan bersama pautan'],
+    },
+  },
+  {
     version: '1.6.2',
     date: '2026-11-17 00:30',
     items: {

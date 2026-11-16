@@ -125,6 +125,7 @@ export const en: Record<MessageKey, string> = {
   'team.copyLink': 'Copy link',
   'team.shareInvite': 'Share invite',
   'team.copied': 'Copied',
+  'team.inviteHint': 'Colleagues tap the link and sign in to ask to join; you approve them below.',
   'team.inviteShareText': "You're invited to join {team} on Tana Team. Tap the link to join, or enter invite code {code} in the app.",
   'team.inviteShareTitle': 'Join {team}',
   'join.sending': 'Sending your request…',

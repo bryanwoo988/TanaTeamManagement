@@ -203,13 +203,12 @@ describe('MembersPage', () => {
       Object.defineProperty(navigator, 'share', { value: share, configurable: true });
     });
 
-    it('copy code and copy link write the right strings', async () => {
+    it('the copy icon copies the code; there is no separate copy-link button', async () => {
       setup();
       await screen.findByText('CODE99');
       fireEvent.click(screen.getByRole('button', { name: 'Copy code' }));
       await waitFor(() => expect(writeText).toHaveBeenCalledWith('CODE99'));
-      fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
-      await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${location.origin}/join/CODE99`));
+      expect(screen.queryByRole('button', { name: 'Copy link' })).toBeNull();
     });
 
     it('share passes title, text with team and code, and the link', async () => {
@@ -223,11 +222,15 @@ describe('MembersPage', () => {
       expect(arg.text).toContain('CODE99');
     });
 
-    it('hides Share invite when the browser cannot share', async () => {
+    it('without a share sheet, Share invite copies the invite message with the link', async () => {
       Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
       setup();
       await screen.findByText('CODE99');
-      expect(screen.queryByRole('button', { name: 'Share invite' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Share invite' }));
+      await waitFor(() => expect(writeText).toHaveBeenCalled());
+      const copied = writeText.mock.calls.at(-1)![0] as string;
+      expect(copied).toContain('CODE99');
+      expect(copied).toContain(`${location.origin}/join/CODE99`);
     });
   });
 });

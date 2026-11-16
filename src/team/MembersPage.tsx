@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
+import { Copy, RotateCcw, Share2 } from 'lucide-react';
 import BackLink from '../nav/BackLink';
 import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -98,8 +99,11 @@ export default function MembersPage() {
 
   async function share() {
     if (!code) return;
+    const text = t('team.inviteShareText', { team: teamName, code });
+    // Browsers without a share sheet: copy the whole invite message (text + link) instead.
+    if (!canShare) { await copy(`${text}\n${inviteUrl}`); return; }
     try {
-      await navigator.share({ title: t('team.inviteShareTitle', { team: teamName }), text: t('team.inviteShareText', { team: teamName, code }), url: inviteUrl });
+      await navigator.share({ title: t('team.inviteShareTitle', { team: teamName }), text, url: inviteUrl });
     } catch (e) {
       if ((e as { name?: string })?.name !== 'AbortError') toastError();
     }
@@ -114,18 +118,22 @@ export default function MembersPage() {
       <h1>{t('team.members')}</h1>
 
       {admin && (
-        <section className="card">
-          <h2>{t('team.inviteCode')}</h2>
-          <p><strong>{code ?? '…'}</strong></p>
-          <div className="row" style={{ flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-            <button type="button" className="btn" disabled={!code} onClick={() => copy(code!)}>{t('team.copyCode')}</button>
-            <button type="button" className="btn" disabled={!code} onClick={() => copy(inviteUrl)}>{t('team.copyLink')}</button>
-            {canShare && <button type="button" className="btn primary" disabled={!code} onClick={share}>{t('team.shareInvite')}</button>}
+        <section className="card invite-card">
+          <h2 className="invite-label">{t('team.inviteCode')}</h2>
+          <div className="invite-code-row">
+            <span className="invite-code">{code ?? '…'}</span>
+            <button type="button" className="icon-btn invite-copy" disabled={!code} aria-label={t('team.copyCode')} title={t('team.copyCode')} onClick={() => copy(code!)}>
+              <Copy size={20} aria-hidden />
+            </button>
           </div>
-          <AsyncButton className="btn" onClick={async () => {
+          <button type="button" className="btn primary block invite-share" disabled={!code} onClick={share}>
+            <Share2 size={18} aria-hidden /><span>{t('team.shareInvite')}</span>
+          </button>
+          <p className="muted small invite-hint">{t('team.inviteHint')}</p>
+          <AsyncButton className="link-btn invite-reset" onClick={async () => {
             if (!(await confirmSheet({ title: t('team.resetCode'), body: t('team.resetConfirm'), danger: true }))) throw new Error('cancelled');
             await reset();
-          }}>{t('team.resetCode')}</AsyncButton>
+          }}><RotateCcw size={15} aria-hidden /> {t('team.resetCode')}</AsyncButton>
         </section>
       )}
 
