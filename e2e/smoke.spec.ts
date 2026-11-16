@@ -79,7 +79,8 @@ test('team lifecycle: create, join, approve, assign, claim, reimburse, export, a
   await bell(bob).click();
   await bob.getByRole('button', { name: 'Mark all read' }).click();
   await expect(bob.getByRole('button', { name: 'Mark all read' })).toHaveCount(0);
-  await bob.getByRole('link', { name: 'Back' }).click();
+  await bob.screenshot({ path: `${SHOTS}notifications.png`, fullPage: true });
+  await bob.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Calendar' }).click();
   await expect(bell(bob)).toHaveAccessibleName('Notifications');
 
   // Alice creates an event in the team calendar assigned to Bob.

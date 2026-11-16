@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 /** Newest first. The newest entry's date is replaced by the real build time on the About page. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.7.0',
+    date: '2026-11-16 22:52',
+    items: {
+      zh: ['通知页面重新设计：按今天／昨天／更早分组，每类通知有自己的图标', '未读通知有底色和圆点，标题旁显示未读数量；时间跟随所选语言显示'],
+      en: ['Notifications page redesigned: grouped into Today / Yesterday / Earlier, with an icon for each kind', 'Unread notifications are tinted with a dot, the unread count sits next to the title, and times follow your language'],
+      ms: ['Halaman pemberitahuan direka semula: dikumpul kepada Hari ini / Semalam / Lebih awal, dengan ikon bagi setiap jenis', 'Pemberitahuan belum dibaca diwarnakan dengan titik, bilangan belum dibaca di sebelah tajuk, dan masa mengikut bahasa anda'],
+    },
+  },
+  {
     version: '1.6.5',
     date: '2026-11-16 18:40',
     items: {
