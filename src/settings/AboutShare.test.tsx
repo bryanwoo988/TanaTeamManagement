@@ -15,7 +15,7 @@ beforeEach(() => setLang('en'));
 describe('AboutPage', () => {
   it('shows the version and the change history', () => {
     render(<MemoryRouter><AboutPage /></MemoryRouter>);
-    expect(screen.getByText('Version 1.6.1')).toBeInTheDocument();
+    expect(screen.getByText('Version 1.6.2')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Settings/ })).toHaveAttribute('href', '/settings');
     expect(screen.getByText(CHANGELOG[0].items.en[0])).toBeInTheDocument();
     expect(screen.getByText('v1.0.0')).toBeInTheDocument();

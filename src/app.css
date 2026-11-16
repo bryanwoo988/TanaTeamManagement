@@ -276,3 +276,6 @@ progress { width: 100%; }
 fieldset.radio-row { display: flex; flex-wrap: wrap; gap: 8px 22px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 14px 12px; margin: 0; }
 fieldset.radio-row legend { padding: 0 6px; color: var(--muted); font-size: 0.9rem; }
 fieldset.radio-row label { display: inline-flex; align-items: center; gap: 8px; }
+button.list-row { width: 100%; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.list-group > button.list-row + button.list-row { border-top: 1px solid var(--line); }
+.list-check { color: var(--accent); }

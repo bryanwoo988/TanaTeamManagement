@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 /** Newest first. The newest entry's date is replaced by the real build time on the About page. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.2',
+    date: '2026-11-17 00:30',
+    items: {
+      zh: ['设置里的「语言」改成一行，只显示当前语言；点开再从列表选择'],
+      en: ['Language in Settings is now one row showing the current language; tap it to pick from a list'],
+      ms: ['Bahasa dalam Tetapan kini satu baris yang menunjukkan bahasa semasa; ketik untuk memilih dari senarai'],
+    },
+  },
+  {
     version: '1.6.1',
     date: '2026-11-17 00:20',
     items: {

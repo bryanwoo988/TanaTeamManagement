@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Bell, ChevronRight, Info, Palette, Share2, Users, Tags, FileDown, UserRound } from 'lucide-react';
+import { Bell, Check, ChevronRight, Info, Languages, Palette, Share2, Users, Tags, FileDown, UserRound } from 'lucide-react';
 import { leaveTeam } from '../api';
 import { signOut, useAuth } from '../auth/AuthProvider';
 import { authErrorKey } from '../auth/authErrors';
@@ -14,6 +14,7 @@ import { useTeams } from '../team/TeamContext';
 import AsyncButton from '../ui/AsyncButton';
 import { confirmSheet } from '../ui/confirm';
 import { toast } from '../ui/toast';
+import { useSwipeToClose } from '../ui/useSwipeToClose';
 import { isActive } from '../../shared/access';
 import type { Lang } from '../../shared/types';
 import { APP_VERSION, BUILD_TIME, formatKL } from './changelog';
@@ -35,9 +36,38 @@ function NavRow({ to, icon, label, value }: { to: string; icon: ReactNode; label
   );
 }
 
+/** Bottom sheet listing the languages; picking one switches and closes. */
+function LanguageSheet({ current, onPick, onClose }: { current: Lang; onPick: (l: Lang) => void; onClose: () => void }) {
+  const { t } = useT();
+  const sheetRef = useSwipeToClose<HTMLDivElement>(onClose);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div ref={sheetRef} className="sheet" role="dialog" aria-modal="true" aria-label={t('settings.language')} onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" aria-hidden />
+        <h2 className="sheet-title">{t('settings.language')}</h2>
+        <div className="list-group" role="radiogroup" aria-label={t('settings.language')}>
+          {LANGS.map((o) => (
+            <button key={o.lang} type="button" role="radio" aria-checked={current === o.lang} className="list-row"
+              onClick={() => { onPick(o.lang); onClose(); }}>
+              <span className="list-label">{o.label}</span>
+              {current === o.lang && <Check size={20} className="list-check" aria-hidden />}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { t, lang } = useT();
   const chooseLang = useChooseLang();
+  const [langOpen, setLangOpen] = useState(false);
   const appearance = useAppearance();
   const { user, profile } = useAuth();
   const [push, setPush] = useState<PushState>(pushState);
@@ -101,14 +131,12 @@ export default function SettingsPage() {
       <div className="list-group">
         <NavRow to="/settings/notifications" icon={<Bell size={20} />} label={t('settings.notifications')} value={push === 'on' ? t('settings.on') : t('settings.off')} />
         <NavRow to="/settings/appearance" icon={<Palette size={20} />} label={t('settings.appearance')} value={modeLabel} />
-        <div className="list-row lang-row">
+        <button type="button" className="list-row" aria-haspopup="dialog" onClick={() => setLangOpen(true)}>
+          <span className="list-icon" aria-hidden><Languages size={20} /></span>
           <span className="list-label">{t('settings.language')}</span>
-          <div className="segmented lang-seg" role="group" aria-label={t('settings.language')}>
-            {LANGS.map((o) => (
-              <button key={o.lang} type="button" aria-pressed={lang === o.lang} onClick={() => chooseLang(o.lang)}>{o.label}</button>
-            ))}
-          </div>
-        </div>
+          <span className="list-value muted">{LANGS.find((o) => o.lang === lang)?.label}</span>
+          <ChevronRight size={18} className="list-chev" aria-hidden />
+        </button>
       </div>
 
       <div className="list-group">
@@ -118,6 +146,7 @@ export default function SettingsPage() {
 
       <AsyncButton className="btn block" onClick={signOut}>{t('common.signOut')}</AsyncButton>
       <p className="small muted version-line">{t('settings.versionLine', { version: APP_VERSION })}</p>
-    </main>
+    {langOpen && <LanguageSheet current={lang} onPick={chooseLang} onClose={() => setLangOpen(false)} />}
+      </main>
   );
 }
